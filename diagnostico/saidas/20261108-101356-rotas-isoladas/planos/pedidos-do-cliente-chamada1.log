@@ -1,0 +1,243 @@
+2026-11-08 13:14:24.083 UTC [9097] LOG:  duration: 0.331 ms  parse <unnamed>: SELECT * FROM clientes WHERE id = $1
+2026-11-08 13:14:24.083 UTC [9097] LOG:  duration: 0.333 ms  bind <unnamed>: SELECT * FROM clientes WHERE id = $1
+2026-11-08 13:14:24.083 UTC [9097] DETAIL:  parameters: $1 = '42'
+2026-11-08 13:14:24.083 UTC [9097] LOG:  duration: 0.039 ms  execute <unnamed>: SELECT * FROM clientes WHERE id = $1
+2026-11-08 13:14:24.083 UTC [9097] DETAIL:  parameters: $1 = '42'
+2026-11-08 13:14:24.083 UTC [9097] LOG:  duration: 0.036 ms  plan:
+	Query Text: SELECT * FROM clientes WHERE id = $1
+	Query Parameters: $1 = '42'
+	Index Scan using clientes_pkey on clientes  (cost=0.29..8.31 rows=1 width=60) (actual time=0.029..0.029 rows=1 loops=1)
+	  Index Cond: (id = 42)
+	  Buffers: shared hit=3
+2026-11-08 13:14:24.092 UTC [9098] LOG:  duration: 0.997 ms  parse <unnamed>: SELECT * FROM pedidos WHERE cliente_id = $1 ORDER BY criado_em DESC, id DESC
+2026-11-08 13:14:24.094 UTC [9098] LOG:  duration: 1.428 ms  bind <unnamed>: SELECT * FROM pedidos WHERE cliente_id = $1 ORDER BY criado_em DESC, id DESC
+2026-11-08 13:14:24.094 UTC [9098] DETAIL:  parameters: $1 = '42'
+2026-11-08 13:14:24.180 UTC [9098] LOG:  duration: 86.151 ms  execute <unnamed>: SELECT * FROM pedidos WHERE cliente_id = $1 ORDER BY criado_em DESC, id DESC
+2026-11-08 13:14:24.180 UTC [9098] DETAIL:  parameters: $1 = '42'
+2026-11-08 13:14:24.180 UTC [9098] LOG:  duration: 86.146 ms  plan:
+	Query Text: SELECT * FROM pedidos WHERE cliente_id = $1 ORDER BY criado_em DESC, id DESC
+	Query Parameters: $1 = '42'
+	Gather Merge  (cost=24438.20..24438.67 rows=4 width=299) (actual time=81.140..86.109 rows=5 loops=1)
+	  Workers Planned: 2
+	  Workers Launched: 2
+	  Buffers: shared hit=8207 read=12753
+	  ->  Sort  (cost=23438.18..23438.18 rows=2 width=299) (actual time=32.188..32.190 rows=2 loops=3)
+	        Sort Key: criado_em DESC, id DESC
+	        Sort Method: quicksort  Memory: 25kB
+	        Buffers: shared hit=8207 read=12753
+	        Worker 0:  Sort Method: quicksort  Memory: 25kB
+	        Worker 1:  Sort Method: quicksort  Memory: 26kB
+	        ->  Parallel Seq Scan on pedidos  (cost=0.00..23438.17 rows=2 width=299) (actual time=14.063..32.131 rows=2 loops=3)
+	              Filter: (cliente_id = 42)
+	              Rows Removed by Filter: 166665
+	              Buffers: shared hit=8081 read=12753
+2026-11-08 13:14:24.192 UTC [9101] LOG:  duration: 0.590 ms  parse <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.192 UTC [9101] LOG:  duration: 0.511 ms  bind <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.192 UTC [9101] DETAIL:  parameters: $1 = '136871'
+2026-11-08 13:14:24.284 UTC [9101] LOG:  duration: 91.700 ms  execute <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.284 UTC [9101] DETAIL:  parameters: $1 = '136871'
+2026-11-08 13:14:24.284 UTC [9101] LOG:  duration: 91.695 ms  plan:
+	Query Text: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+	Query Parameters: $1 = '136871'
+	Sort  (cost=18367.94..18367.95 rows=4 width=20) (actual time=87.606..91.687 rows=2 loops=1)
+	  Sort Key: id
+	  Sort Method: quicksort  Memory: 25kB
+	  Buffers: shared hit=6601 read=2957
+	  ->  Gather  (cost=1000.00..18367.90 rows=4 width=20) (actual time=87.444..91.651 rows=2 loops=1)
+	        Workers Planned: 2
+	        Workers Launched: 2
+	        Buffers: shared hit=6598 read=2957
+	        ->  Parallel Seq Scan on itens_pedido  (cost=0.00..17367.50 rows=2 width=20) (actual time=66.594..84.155 rows=1 loops=3)
+	              Filter: (pedido_id = 136871)
+	              Rows Removed by Filter: 499999
+	              Buffers: shared hit=6598 read=2957
+2026-11-08 13:14:24.296 UTC [9104] LOG:  duration: 0.362 ms  parse <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.296 UTC [9104] LOG:  duration: 0.396 ms  bind <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.296 UTC [9104] DETAIL:  parameters: $1 = '3'
+2026-11-08 13:14:24.296 UTC [9104] LOG:  duration: 0.021 ms  execute <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.296 UTC [9104] DETAIL:  parameters: $1 = '3'
+2026-11-08 13:14:24.296 UTC [9104] LOG:  duration: 0.019 ms  plan:
+	Query Text: SELECT * FROM produtos WHERE id = $1
+	Query Parameters: $1 = '3'
+	Index Scan using produtos_pkey on produtos  (cost=0.29..8.30 rows=1 width=44) (actual time=0.015..0.016 rows=1 loops=1)
+	  Index Cond: (id = 3)
+	  Buffers: shared hit=3
+2026-11-08 13:14:24.305 UTC [9105] LOG:  duration: 0.328 ms  parse <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.306 UTC [9105] LOG:  duration: 0.371 ms  bind <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.306 UTC [9105] DETAIL:  parameters: $1 = '4838'
+2026-11-08 13:14:24.306 UTC [9105] LOG:  duration: 0.202 ms  execute <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.306 UTC [9105] DETAIL:  parameters: $1 = '4838'
+2026-11-08 13:14:24.306 UTC [9105] LOG:  duration: 0.199 ms  plan:
+	Query Text: SELECT * FROM produtos WHERE id = $1
+	Query Parameters: $1 = '4838'
+	Index Scan using produtos_pkey on produtos  (cost=0.29..8.30 rows=1 width=44) (actual time=0.195..0.196 rows=1 loops=1)
+	  Index Cond: (id = 4838)
+	  Buffers: shared hit=2 read=1
+2026-11-08 13:14:24.316 UTC [9106] LOG:  duration: 0.494 ms  parse <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.316 UTC [9106] LOG:  duration: 0.361 ms  bind <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.316 UTC [9106] DETAIL:  parameters: $1 = '236871'
+2026-11-08 13:14:24.387 UTC [9106] LOG:  duration: 70.769 ms  execute <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.387 UTC [9106] DETAIL:  parameters: $1 = '236871'
+2026-11-08 13:14:24.387 UTC [9106] LOG:  duration: 70.763 ms  plan:
+	Query Text: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+	Query Parameters: $1 = '236871'
+	Sort  (cost=18367.94..18367.95 rows=4 width=20) (actual time=66.520..70.753 rows=2 loops=1)
+	  Sort Key: id
+	  Sort Method: quicksort  Memory: 25kB
+	  Buffers: shared hit=6639 read=2919
+	  ->  Gather  (cost=1000.00..18367.90 rows=4 width=20) (actual time=66.379..70.721 rows=2 loops=1)
+	        Workers Planned: 2
+	        Workers Launched: 2
+	        Buffers: shared hit=6636 read=2919
+	        ->  Parallel Seq Scan on itens_pedido  (cost=0.00..17367.50 rows=2 width=20) (actual time=63.147..63.197 rows=1 loops=3)
+	              Filter: (pedido_id = 236871)
+	              Rows Removed by Filter: 499999
+	              Buffers: shared hit=6636 read=2919
+2026-11-08 13:14:24.400 UTC [9109] LOG:  duration: 0.402 ms  parse <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.400 UTC [9109] LOG:  duration: 0.350 ms  bind <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.400 UTC [9109] DETAIL:  parameters: $1 = '3'
+2026-11-08 13:14:24.400 UTC [9109] LOG:  duration: 0.021 ms  execute <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.400 UTC [9109] DETAIL:  parameters: $1 = '3'
+2026-11-08 13:14:24.400 UTC [9109] LOG:  duration: 0.018 ms  plan:
+	Query Text: SELECT * FROM produtos WHERE id = $1
+	Query Parameters: $1 = '3'
+	Index Scan using produtos_pkey on produtos  (cost=0.29..8.30 rows=1 width=44) (actual time=0.015..0.015 rows=1 loops=1)
+	  Index Cond: (id = 3)
+	  Buffers: shared hit=3
+2026-11-08 13:14:24.409 UTC [9110] LOG:  duration: 0.324 ms  parse <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.409 UTC [9110] LOG:  duration: 0.375 ms  bind <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.409 UTC [9110] DETAIL:  parameters: $1 = '4838'
+2026-11-08 13:14:24.409 UTC [9110] LOG:  duration: 0.041 ms  execute <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.409 UTC [9110] DETAIL:  parameters: $1 = '4838'
+2026-11-08 13:14:24.409 UTC [9110] LOG:  duration: 0.038 ms  plan:
+	Query Text: SELECT * FROM produtos WHERE id = $1
+	Query Parameters: $1 = '4838'
+	Index Scan using produtos_pkey on produtos  (cost=0.29..8.30 rows=1 width=44) (actual time=0.035..0.035 rows=1 loops=1)
+	  Index Cond: (id = 4838)
+	  Buffers: shared hit=3
+2026-11-08 13:14:24.417 UTC [9111] LOG:  duration: 0.440 ms  parse <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.418 UTC [9111] LOG:  duration: 0.336 ms  bind <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.418 UTC [9111] DETAIL:  parameters: $1 = '336871'
+2026-11-08 13:14:24.491 UTC [9111] LOG:  duration: 73.239 ms  execute <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.491 UTC [9111] DETAIL:  parameters: $1 = '336871'
+2026-11-08 13:14:24.491 UTC [9111] LOG:  duration: 73.234 ms  plan:
+	Query Text: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+	Query Parameters: $1 = '336871'
+	Sort  (cost=18367.94..18367.95 rows=4 width=20) (actual time=69.249..73.226 rows=2 loops=1)
+	  Sort Key: id
+	  Sort Method: quicksort  Memory: 25kB
+	  Buffers: shared hit=6735 read=2823
+	  ->  Gather  (cost=1000.00..18367.90 rows=4 width=20) (actual time=69.111..73.194 rows=2 loops=1)
+	        Workers Planned: 2
+	        Workers Launched: 2
+	        Buffers: shared hit=6732 read=2823
+	        ->  Parallel Seq Scan on itens_pedido  (cost=0.00..17367.50 rows=2 width=20) (actual time=45.710..66.119 rows=1 loops=3)
+	              Filter: (pedido_id = 336871)
+	              Rows Removed by Filter: 499999
+	              Buffers: shared hit=6732 read=2823
+2026-11-08 13:14:24.502 UTC [9114] LOG:  duration: 0.347 ms  parse <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.503 UTC [9114] LOG:  duration: 0.331 ms  bind <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.503 UTC [9114] DETAIL:  parameters: $1 = '3'
+2026-11-08 13:14:24.503 UTC [9114] LOG:  duration: 0.020 ms  execute <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.503 UTC [9114] DETAIL:  parameters: $1 = '3'
+2026-11-08 13:14:24.503 UTC [9114] LOG:  duration: 0.017 ms  plan:
+	Query Text: SELECT * FROM produtos WHERE id = $1
+	Query Parameters: $1 = '3'
+	Index Scan using produtos_pkey on produtos  (cost=0.29..8.30 rows=1 width=44) (actual time=0.014..0.015 rows=1 loops=1)
+	  Index Cond: (id = 3)
+	  Buffers: shared hit=3
+2026-11-08 13:14:24.510 UTC [9115] LOG:  duration: 0.288 ms  parse <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.511 UTC [9115] LOG:  duration: 0.358 ms  bind <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.511 UTC [9115] DETAIL:  parameters: $1 = '4838'
+2026-11-08 13:14:24.511 UTC [9115] LOG:  duration: 0.044 ms  execute <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.511 UTC [9115] DETAIL:  parameters: $1 = '4838'
+2026-11-08 13:14:24.511 UTC [9115] LOG:  duration: 0.042 ms  plan:
+	Query Text: SELECT * FROM produtos WHERE id = $1
+	Query Parameters: $1 = '4838'
+	Index Scan using produtos_pkey on produtos  (cost=0.29..8.30 rows=1 width=44) (actual time=0.039..0.039 rows=1 loops=1)
+	  Index Cond: (id = 4838)
+	  Buffers: shared hit=3
+2026-11-08 13:14:24.518 UTC [9116] LOG:  duration: 0.480 ms  parse <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.519 UTC [9116] LOG:  duration: 0.347 ms  bind <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.519 UTC [9116] DETAIL:  parameters: $1 = '436871'
+2026-11-08 13:14:24.593 UTC [9116] LOG:  duration: 74.340 ms  execute <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.593 UTC [9116] DETAIL:  parameters: $1 = '436871'
+2026-11-08 13:14:24.593 UTC [9116] LOG:  duration: 74.336 ms  plan:
+	Query Text: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+	Query Parameters: $1 = '436871'
+	Sort  (cost=18367.94..18367.95 rows=4 width=20) (actual time=70.307..74.328 rows=2 loops=1)
+	  Sort Key: id
+	  Sort Method: quicksort  Memory: 25kB
+	  Buffers: shared hit=6831 read=2727
+	  ->  Gather  (cost=1000.00..18367.90 rows=4 width=20) (actual time=70.155..74.295 rows=2 loops=1)
+	        Workers Planned: 2
+	        Workers Launched: 2
+	        Buffers: shared hit=6828 read=2727
+	        ->  Parallel Seq Scan on itens_pedido  (cost=0.00..17367.50 rows=2 width=20) (actual time=62.690..67.168 rows=1 loops=3)
+	              Filter: (pedido_id = 436871)
+	              Rows Removed by Filter: 499999
+	              Buffers: shared hit=6828 read=2727
+2026-11-08 13:14:24.604 UTC [9119] LOG:  duration: 0.344 ms  parse <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.605 UTC [9119] LOG:  duration: 0.352 ms  bind <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.605 UTC [9119] DETAIL:  parameters: $1 = '3'
+2026-11-08 13:14:24.605 UTC [9119] LOG:  duration: 0.020 ms  execute <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.605 UTC [9119] DETAIL:  parameters: $1 = '3'
+2026-11-08 13:14:24.605 UTC [9119] LOG:  duration: 0.018 ms  plan:
+	Query Text: SELECT * FROM produtos WHERE id = $1
+	Query Parameters: $1 = '3'
+	Index Scan using produtos_pkey on produtos  (cost=0.29..8.30 rows=1 width=44) (actual time=0.015..0.016 rows=1 loops=1)
+	  Index Cond: (id = 3)
+	  Buffers: shared hit=3
+2026-11-08 13:14:24.612 UTC [9120] LOG:  duration: 0.288 ms  parse <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.613 UTC [9120] LOG:  duration: 0.309 ms  bind <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.613 UTC [9120] DETAIL:  parameters: $1 = '4838'
+2026-11-08 13:14:24.613 UTC [9120] LOG:  duration: 0.039 ms  execute <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.613 UTC [9120] DETAIL:  parameters: $1 = '4838'
+2026-11-08 13:14:24.613 UTC [9120] LOG:  duration: 0.037 ms  plan:
+	Query Text: SELECT * FROM produtos WHERE id = $1
+	Query Parameters: $1 = '4838'
+	Index Scan using produtos_pkey on produtos  (cost=0.29..8.30 rows=1 width=44) (actual time=0.034..0.034 rows=1 loops=1)
+	  Index Cond: (id = 4838)
+	  Buffers: shared hit=3
+2026-11-08 13:14:24.620 UTC [9121] LOG:  duration: 0.467 ms  parse <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.621 UTC [9121] LOG:  duration: 0.331 ms  bind <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.621 UTC [9121] DETAIL:  parameters: $1 = '36871'
+2026-11-08 13:14:24.696 UTC [9121] LOG:  duration: 74.921 ms  execute <unnamed>: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+2026-11-08 13:14:24.696 UTC [9121] DETAIL:  parameters: $1 = '36871'
+2026-11-08 13:14:24.696 UTC [9121] LOG:  duration: 74.918 ms  plan:
+	Query Text: SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+	Query Parameters: $1 = '36871'
+	Sort  (cost=18367.94..18367.95 rows=4 width=20) (actual time=70.784..74.909 rows=2 loops=1)
+	  Sort Key: id
+	  Sort Method: quicksort  Memory: 25kB
+	  Buffers: shared hit=6927 read=2631
+	  ->  Gather  (cost=1000.00..18367.90 rows=4 width=20) (actual time=61.592..74.876 rows=2 loops=1)
+	        Workers Planned: 2
+	        Workers Launched: 2
+	        Buffers: shared hit=6924 read=2631
+	        ->  Parallel Seq Scan on itens_pedido  (cost=0.00..17367.50 rows=2 width=20) (actual time=64.734..67.751 rows=1 loops=3)
+	              Filter: (pedido_id = 36871)
+	              Rows Removed by Filter: 499999
+	              Buffers: shared hit=6924 read=2631
+2026-11-08 13:14:24.707 UTC [9124] LOG:  duration: 0.302 ms  parse <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.707 UTC [9124] LOG:  duration: 0.344 ms  bind <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.707 UTC [9124] DETAIL:  parameters: $1 = '3'
+2026-11-08 13:14:24.707 UTC [9124] LOG:  duration: 0.020 ms  execute <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.707 UTC [9124] DETAIL:  parameters: $1 = '3'
+2026-11-08 13:14:24.707 UTC [9124] LOG:  duration: 0.017 ms  plan:
+	Query Text: SELECT * FROM produtos WHERE id = $1
+	Query Parameters: $1 = '3'
+	Index Scan using produtos_pkey on produtos  (cost=0.29..8.30 rows=1 width=44) (actual time=0.014..0.015 rows=1 loops=1)
+	  Index Cond: (id = 3)
+	  Buffers: shared hit=3
+2026-11-08 13:14:24.715 UTC [9125] LOG:  duration: 0.282 ms  parse <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.715 UTC [9125] LOG:  duration: 0.293 ms  bind <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.715 UTC [9125] DETAIL:  parameters: $1 = '4838'
+2026-11-08 13:14:24.715 UTC [9125] LOG:  duration: 0.037 ms  execute <unnamed>: SELECT * FROM produtos WHERE id = $1
+2026-11-08 13:14:24.715 UTC [9125] DETAIL:  parameters: $1 = '4838'
+2026-11-08 13:14:24.715 UTC [9125] LOG:  duration: 0.035 ms  plan:
+	Query Text: SELECT * FROM produtos WHERE id = $1
+	Query Parameters: $1 = '4838'
+	Index Scan using produtos_pkey on produtos  (cost=0.29..8.30 rows=1 width=44) (actual time=0.033..0.033 rows=1 loops=1)
+	  Index Cond: (id = 4838)
+	  Buffers: shared hit=3

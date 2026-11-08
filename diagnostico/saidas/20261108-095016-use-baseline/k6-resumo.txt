@@ -1,0 +1,17 @@
+Medição: use-baseline
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        214
+Requisições/s:      3.15
+Tempo de resposta:  mediana 1250.0 ms | p95 21533.8 ms | p99 27870.7 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               52        494.2 ms      744.9 ms      932.7 ms      0.0%    
+cliente-por-email     38        1161.9 ms     2903.0 ms     3468.4 ms     0.0%    
+pedidos-do-cliente    46        19722.5 ms    24297.9 ms    27306.3 ms    0.0%    
+pedidos-por-status    23        5705.1 ms     25807.1 ms    31190.2 ms    0.0%    
+busca-produtos        35        679.5 ms      1061.7 ms     1534.2 ms     0.0%    
+vendas-por-dia        17        6217.6 ms     9335.0 ms     9402.4 ms     0.0%    
+top-produtos          3         18262.3 ms    26933.2 ms    27704.0 ms    0.0%    

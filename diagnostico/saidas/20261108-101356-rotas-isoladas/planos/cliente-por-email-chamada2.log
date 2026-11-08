@@ -1,0 +1,16 @@
+2026-11-08 13:14:22.768 UTC [9089] LOG:  duration: 0.717 ms  parse <unnamed>: SELECT * FROM clientes WHERE lower(email) = lower($1) ORDER BY id
+2026-11-08 13:14:22.769 UTC [9089] LOG:  duration: 0.568 ms  bind <unnamed>: SELECT * FROM clientes WHERE lower(email) = lower($1) ORDER BY id
+2026-11-08 13:14:22.769 UTC [9089] DETAIL:  parameters: $1 = 'cliente42@exemplo.com'
+2026-11-08 13:14:22.795 UTC [9089] LOG:  duration: 26.159 ms  execute <unnamed>: SELECT * FROM clientes WHERE lower(email) = lower($1) ORDER BY id
+2026-11-08 13:14:22.795 UTC [9089] DETAIL:  parameters: $1 = 'cliente42@exemplo.com'
+2026-11-08 13:14:22.795 UTC [9089] LOG:  duration: 26.154 ms  plan:
+	Query Text: SELECT * FROM clientes WHERE lower(email) = lower($1) ORDER BY id
+	Query Parameters: $1 = 'cliente42@exemplo.com'
+	Sort  (cost=2678.41..2679.66 rows=500 width=60) (actual time=26.132..26.134 rows=1 loops=1)
+	  Sort Key: id
+	  Sort Method: quicksort  Memory: 25kB
+	  Buffers: shared hit=1159
+	  ->  Seq Scan on clientes  (cost=0.00..2656.00 rows=500 width=60) (actual time=0.016..26.095 rows=1 loops=1)
+	        Filter: (lower(email) = 'cliente42@exemplo.com'::text)
+	        Rows Removed by Filter: 99999
+	        Buffers: shared hit=1156

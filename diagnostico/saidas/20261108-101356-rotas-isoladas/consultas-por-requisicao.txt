@@ -1,0 +1,25 @@
+rota                                chamada sql_executados soma_ms_no_banco     planos
+cliente                                   1              1              0.5          1
+cliente                                   2              1              0.0          1
+cliente-por-email                         1              1             45.1          1
+cliente-por-email                         2              1             26.2          1
+pedidos-do-cliente                        1             17            471.6         17
+pedidos-do-cliente                        2             17            469.6         17
+pedidos-por-status-pago-p1                1              2            183.6          2
+pedidos-por-status-pago-p1                2              2            169.4          2
+pedidos-por-status-pago-p1000             1              2            500.4          2
+pedidos-por-status-pago-p1000             2              2            456.2          2
+pedidos-por-status-cancelado-p500         1              2            205.0          2
+pedidos-por-status-cancelado-p500         2              2            158.1          2
+busca-produtos-cadeira                    1              1             15.4          1
+busca-produtos-cadeira                    2              1             12.3          1
+busca-produtos-lumin                      1              1              9.3          1
+busca-produtos-lumin                      2              1              9.4          1
+vendas-por-dia                            1              1            307.2          1
+vendas-por-dia                            2              1            316.6          1
+top-produtos                              1              1           1310.5          1
+top-produtos                              2              1           1409.3          1
+
+sql_executados = consultas que a requisição disparou no banco; soma_ms_no_banco = soma das durações delas
+(com o custo do ANALYZE). chamada 1 = cache possivelmente frio; chamada 2 = mais quente.
+No log: procure Seq Scan, 'Rows Removed by Filter', 'Buffers: shared read', 'Sort Method: external merge'.

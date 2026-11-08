@@ -1,0 +1,25 @@
+matriz USE: use-baseline
+janela lida: 69.2 s (do início ao fim do container do k6: a carga e ~1-2 s de partida)
+valores são deltas na janela, exceto onde indicado. nd = arquivo ausente (lacuna, não zero).
+
+== banco ==
+CPU      utilização  0.99 CPUs (limite 1.00)
+CPU      saturação   throttled 679 (96.3% dos períodos), throttled_usec 679.87 s; PSI cpu some 86.9% da janela
+Memória  utilização  fim 322.6 MiB de limite 512.0 MiB; pico desde o início do container 512.0 MiB
+Memória  saturação   events high=0 max=2414; PSI memory some 5.9% da janela, full 1.0% da janela
+Erros                oom=0 oom_kill=0
+E/S      utilização  leitura 268.1 MiB (5577 ops), escrita 485.6 MiB (4966 ops)
+E/S      saturação   PSI io some 0.6% da janela, full 0.1% da janela
+
+== api ==
+CPU      utilização  0.09 CPUs (limite 0.50)
+CPU      saturação   throttled 5 (0.7% dos períodos), throttled_usec 0.67 s; PSI cpu some 0.6% da janela
+Memória  utilização  fim 33.2 MiB de limite 256.0 MiB; pico desde o início do container 41.7 MiB
+Memória  saturação   events high=0 max=0; PSI memory some 0.0% da janela, full 0.0% da janela
+Erros                oom=0 oom_kill=0
+E/S      utilização  leitura 0.0 MiB (0 ops), escrita 0.0 MiB (0 ops)
+E/S      saturação   PSI io some 0.0% da janela, full 0.0% da janela
+
+picos por amostra (de amostras.csv; cpu_pico = maior uso médio entre duas amostras seguidas; pode ser artefato de tempo, prefira os valores acima):
+  api      amostras=11 cpu_pico=0.13 mem_pico=35.0 MiB
+  banco    amostras=11 cpu_pico=1.23 mem_pico=512.0 MiB

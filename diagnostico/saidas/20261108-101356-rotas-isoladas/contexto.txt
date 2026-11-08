@@ -1,0 +1,19 @@
+rotulo: rotas-isoladas
+data: 2026-11-08 10:13:56 -0300
+repeticoes por rota: 5
+planos (parte 2): 1
+cpu do banco ao começar: 0.59%
+commit: 99a7272
+arquivos alterados sem commit: 1
+
+rotas:
+  cliente  /clientes/42
+  cliente-por-email  /clientes?email=cliente42%40exemplo.com
+  pedidos-do-cliente  /clientes/42/pedidos
+  pedidos-por-status-pago-p1  /pedidos?status=pago&pagina=1
+  pedidos-por-status-pago-p1000  /pedidos?status=pago&pagina=1000
+  pedidos-por-status-cancelado-p500  /pedidos?status=cancelado&pagina=500
+  busca-produtos-cadeira  /produtos/busca?q=cadeira
+  busca-produtos-lumin  /produtos/busca?q=lumin
+  vendas-por-dia  /relatorios/vendas-por-dia?inicio=2024-03-01&fim=2024-03-07
+  top-produtos  /relatorios/top-produtos?limite=10

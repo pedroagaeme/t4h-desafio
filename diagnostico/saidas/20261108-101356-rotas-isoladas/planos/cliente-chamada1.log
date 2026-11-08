@@ -1,0 +1,11 @@
+2026-11-08 13:14:18.814 UTC [9086] LOG:  duration: 0.908 ms  parse <unnamed>: SELECT * FROM clientes WHERE id = $1
+2026-11-08 13:14:18.815 UTC [9086] LOG:  duration: 0.750 ms  bind <unnamed>: SELECT * FROM clientes WHERE id = $1
+2026-11-08 13:14:18.815 UTC [9086] DETAIL:  parameters: $1 = '42'
+2026-11-08 13:14:18.816 UTC [9086] LOG:  duration: 0.523 ms  execute <unnamed>: SELECT * FROM clientes WHERE id = $1
+2026-11-08 13:14:18.816 UTC [9086] DETAIL:  parameters: $1 = '42'
+2026-11-08 13:14:18.817 UTC [9086] LOG:  duration: 0.520 ms  plan:
+	Query Text: SELECT * FROM clientes WHERE id = $1
+	Query Parameters: $1 = '42'
+	Index Scan using clientes_pkey on clientes  (cost=0.29..8.31 rows=1 width=60) (actual time=0.507..0.508 rows=1 loops=1)
+	  Index Cond: (id = 42)
+	  Buffers: shared read=3
