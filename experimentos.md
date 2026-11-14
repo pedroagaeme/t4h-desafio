@@ -50,7 +50,7 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 | # | Rodada | Ideia | Fonte | Status | Antes | Depois | Pasta antes | Pasta depois | Conclusão |
 |---|---|---|---|---|---|---|---|---|---|
 | 1 | 1 | Índice em `itens_pedido(pedido_id)` | [Docs 11.1](https://www.postgresql.org/docs/16/indexes-intro.html), [Docs 5.4.5](https://www.postgresql.org/docs/16/ddl-constraints.html) | Aplicada e medida | p95 `pedidos-do-cliente`: 22594,2 ms<br>p95 total: 20065,9 ms<br>3,32 req/s | p95 `pedidos-do-cliente`: 11518,9 ms<br>p95 total: 10717,4 ms<br>5,45 req/s | `*-00-linha-de-base` | `*-01-indice-itens-pedido` | H1 confirmada: p95 da rota caiu 49%, p95 total 47%, req/s +64%. `vendas-por-dia` piorou (p95 7948,6 → 14053,4 ms), causa não investigada |
-| 2 | 1 | Índice em `pedidos(cliente_id)` | mesmas do #1 | Pesquisada, teste futuro | p95 `pedidos-do-cliente`: 11518,9 ms<br>p95 total: 10717,4 ms<br>5,45 req/s | preencher | `*-01-indice-itens-pedido` | preencher | preencher |
+| 2 | 1 | Índice em `pedidos(cliente_id)` | mesmas do #1 | Aplicada e medida | p95 `pedidos-do-cliente`: 11518,9 ms<br>p95 total: 10717,4 ms<br>5,45 req/s | p95 `pedidos-do-cliente`: 9388,6 ms<br>p95 total: 8796,8 ms<br>6,50 req/s | `*-01-indice-itens-pedido` | `*-02-indice-pedidos-cliente` | H2 confirmada: p95 da rota caiu 18,5%, p95 total 17,9%, req/s +19,3%. Ganho bem menor que o do #1; o banco segue em ~100% de CPU. `pedidos-por-status` melhorou sem ter sido alterada (p95 11004,6 → 8707,0 ms), causa não investigada |
 
 Status: `Aplicada e medida`, `Aplicada, sem ganho` ou `Pesquisada, teste futuro`. Ao medir, troque o status e preencha Depois (medianas das 3 execuções), a pasta e a conclusão.
 
@@ -69,6 +69,35 @@ Status: `Aplicada e medida`, `Aplicada, sem ganho` ou `Pesquisada, teste futuro`
 
 Requisições por segundo: 3,32 → 5,45. Erros: 0,0% nas 3 execuções.
 O p95 de `pedidos-do-cliente` nas 3 execuções foi 11518,9, 10708,3 e 12513,5 ms, todos abaixo do menor valor da baseline (22017,4 ms).
+
+### Detalhe do #2 (mediana das 3 execuções, antes → depois)
+
+Rótulo `02-indice-pedidos-cliente`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), commit `182842e`, 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções.
+
+- `resultados/20261114-142312-02-indice-pedidos-cliente`
+- `resultados/20261114-142444-02-indice-pedidos-cliente`
+- `resultados/20261114-142617-02-indice-pedidos-cliente`
+
+| rota | req | mediana (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|
+| total | 340 → 417 | 898,4 → 897,5 | 10717,4 → 8796,8 | 17400,8 → 16570,7 |
+| cliente | 83 → 111 | 297,8 → 303,3 | 598,5 → 586,4 | 819,9 → 700,5 |
+| cliente-por-email | 56 → 64 | 896,9 → 894,2 | 1340,1 → 1178,8 | 1782,4 → 1475,3 |
+| pedidos-do-cliente | 68 → 83 | 8003,5 → 5687,9 | 11518,9 → 9388,6 | 12206,4 → 10396,2 |
+| pedidos-por-status | 48 → 57 | 5723,1 → 5598,3 | 11004,6 → 8707,0 | 22125,4 → 12159,9 |
+| busca-produtos | 60 → 70 | 499,0 → 495,2 | 793,4 → 714,7 | 977,3 → 918,1 |
+| vendas-por-dia | 25 → 29 | 6417,8 → 5622,4 | 14053,4 → 14231,2 | 18860,6 → 20786,4 |
+| top-produtos | 5 → 5 | 16802,2 → 22700,8 | 30522,3 → 24875,9 | 32745,8 → 26467,6 |
+
+Requisições por segundo: 5,45 → 6,50. Erros: 0,0% nas 3 execuções.
+O p95 de `pedidos-do-cliente` nas 3 execuções foi 10390,8, 9100,6 e 9388,6 ms, todos abaixo do menor valor de antes (10708,3 ms).
+
+Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
+
+| contêiner | cpu média | cpu máx | mem média (MiB) | mem máx (MiB) |
+|---|---|---|---|---|
+| banco | 100,3% | 99,9% | 398,9 | 466,5 |
+| api | 11,7% | 9,7% | 39,5 | 54,0 |
 
 ## Hipóteses (escritas antes de aplicar)
 
