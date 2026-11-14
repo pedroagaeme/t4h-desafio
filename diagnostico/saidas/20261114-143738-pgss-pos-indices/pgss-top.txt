@@ -1,0 +1,17 @@
+Top 10 comandos por tempo total de execução (tempo decorrido, não CPU). Rótulo: pgss-pos-indices
+pct_tempo = parcela do tempo total de todos os comandos registrados (exceto consultas ao próprio pg_stat_statements).
+
+       queryid        | calls | total_ms | pct_tempo | mean_ms |  rows  | shared_blks_hit | shared_blks_read | shared_blks_dirtied | shared_blks_written | temp_blks_written |                                           query                                            
+----------------------+-------+----------+-----------+---------+--------+-----------------+------------------+---------------------+---------------------+-------------------+--------------------------------------------------------------------------------------------
+ -3940025543376342440 |    61 |   131749 |      32.9 | 2159.81 |   1220 |          479749 |           795850 |                   0 |                   5 |            160276 | SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $
+ -1890180653471874579 |    61 |    82141 |      20.5 | 1346.57 |     61 |          451534 |           819340 |                   0 |                   1 |                 0 | SELECT count(*) AS total FROM pedidos WHERE status = $1
+   -75894212777778897 |    30 |    66102 |      16.5 | 2203.39 | 387828 |          712644 |           431149 |                   0 |                   0 |                 0 | SELECT p.id AS pedido_id, p.criado_em, p.observacoes, i.quantidade, i.preco_unitario_centa
+  6997656115650414199 |     6 |    55880 |      14.0 | 9313.30 |     60 |           75811 |           109050 |                   0 |                   0 |                 0 | SELECT pr.id, pr.nome, pr.categoria, sum(i.quantidade) AS unidades, sum(i.quantidade * i.p
+  7791463582805634528 |    69 |    37464 |       9.4 |  542.95 |     69 |           79971 |                0 |                   0 |                   0 |                 0 | SELECT * FROM clientes WHERE lower(email) = lower($1) ORDER BY id
+ -8824106211762854601 |    73 |    15824 |       4.0 |  216.77 |   1460 |           14308 |                0 |                   0 |                   0 |                 0 | SELECT * FROM produtos WHERE nome ILIKE $2 || $1 || $3 ORDER BY nome, id LIMIT $4
+ -7877847192193463136 |    94 |     5239 |       1.3 |   55.74 |    470 |             908 |              408 |                   0 |                   0 |                 0 | SELECT * FROM pedidos WHERE cliente_id = $1 ORDER BY criado_em DESC, id DESC
+  3781620986192754237 |   217 |     5066 |       1.3 |   23.35 |    217 |             453 |              198 |                   0 |                   0 |                 0 | SELECT * FROM clientes WHERE id = $1
+    86471328074143344 |  1330 |      454 |       0.1 |    0.34 |   1330 |            3895 |               95 |                   0 |                   0 |                 0 | SELECT * FROM produtos WHERE id = $1
+ -3558424336873406872 |   470 |      336 |       0.1 |    0.71 |   1330 |            2983 |              309 |                   0 |                   0 |                 0 | SELECT * FROM itens_pedido WHERE pedido_id = $1 ORDER BY id
+(10 rows)
+

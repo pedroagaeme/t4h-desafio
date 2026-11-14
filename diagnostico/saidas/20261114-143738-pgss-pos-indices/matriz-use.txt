@@ -1,0 +1,25 @@
+matriz USE: pgss-pos-indices
+janela lida: 65.8 s (do início ao fim do container do k6: a carga e ~1-2 s de partida)
+valores são deltas na janela, exceto onde indicado. nd = arquivo ausente (lacuna, não zero).
+
+== banco ==
+CPU      utilização  0.99 CPUs (limite 1.00)
+CPU      saturação   throttled 641 (96.0% dos períodos), throttled_usec 610.45 s; PSI cpu some 82.0% da janela
+Memória  utilização  fim 213.6 MiB de limite 512.0 MiB; pico desde o início do container 448.7 MiB
+Memória  saturação   events high=0 max=0; PSI memory some 0.0% da janela, full 0.0% da janela
+Erros                oom=0 oom_kill=0
+E/S      utilização  leitura 2.5 MiB (245 ops), escrita 741.1 MiB (862 ops)
+E/S      saturação   PSI io some 0.1% da janela, full 0.0% da janela
+
+== api ==
+CPU      utilização  0.14 CPUs (limite 0.50)
+CPU      saturação   throttled 12 (1.8% dos períodos), throttled_usec 0.23 s; PSI cpu some 0.5% da janela
+Memória  utilização  fim 16.8 MiB de limite 256.0 MiB; pico desde o início do container 44.3 MiB
+Memória  saturação   events high=0 max=0; PSI memory some 0.0% da janela, full 0.0% da janela
+Erros                oom=0 oom_kill=0
+E/S      utilização  leitura 0.0 MiB (0 ops), escrita 0.0 MiB (0 ops)
+E/S      saturação   PSI io some 0.0% da janela, full 0.0% da janela
+
+picos por amostra (de amostras.csv; cpu_pico = maior uso médio entre duas amostras seguidas; pode ser artefato de tempo, prefira os valores acima):
+  api      amostras=11 cpu_pico=0.18 mem_pico=40.7 MiB
+  banco    amostras=11 cpu_pico=1.08 mem_pico=397.0 MiB
