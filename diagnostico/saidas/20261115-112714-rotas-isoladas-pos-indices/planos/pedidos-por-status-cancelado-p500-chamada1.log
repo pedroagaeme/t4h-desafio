@@ -1,0 +1,44 @@
+2026-11-15 14:27:47.142 UTC [447] LOG:  duration: 0.389 ms  parse <unnamed>: SELECT count(*) AS total FROM pedidos WHERE status = $1
+2026-11-15 14:27:47.143 UTC [447] LOG:  duration: 0.430 ms  bind <unnamed>: SELECT count(*) AS total FROM pedidos WHERE status = $1
+2026-11-15 14:27:47.143 UTC [447] DETAIL:  parameters: $1 = 'cancelado'
+2026-11-15 14:27:47.174 UTC [447] LOG:  duration: 31.481 ms  execute <unnamed>: SELECT count(*) AS total FROM pedidos WHERE status = $1
+2026-11-15 14:27:47.174 UTC [447] DETAIL:  parameters: $1 = 'cancelado'
+2026-11-15 14:27:47.174 UTC [447] LOG:  duration: 31.475 ms  plan:
+	Query Text: SELECT count(*) AS total FROM pedidos WHERE status = $1
+	Query Parameters: $1 = 'cancelado'
+	Finalize Aggregate  (cost=24490.08..24490.09 rows=1 width=8) (actual time=28.324..31.467 rows=1 loops=1)
+	  Buffers: shared hit=4613 read=16221
+	  ->  Gather  (cost=24489.87..24490.08 rows=2 width=8) (actual time=28.223..31.462 rows=3 loops=1)
+	        Workers Planned: 2
+	        Workers Launched: 2
+	        Buffers: shared hit=4613 read=16221
+	        ->  Partial Aggregate  (cost=23489.87..23489.88 rows=1 width=8) (actual time=25.039..25.039 rows=1 loops=3)
+	              Buffers: shared hit=4613 read=16221
+	              ->  Parallel Seq Scan on pedidos  (cost=0.00..23438.17 rows=20680 width=0) (actual time=0.019..24.188 rows=16667 loops=3)
+	                    Filter: (status = 'cancelado'::text)
+	                    Rows Removed by Filter: 150000
+	                    Buffers: shared hit=4613 read=16221
+2026-11-15 14:27:47.184 UTC [450] LOG:  duration: 0.577 ms  parse <unnamed>: SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+2026-11-15 14:27:47.184 UTC [450] LOG:  duration: 0.413 ms  bind <unnamed>: SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+2026-11-15 14:27:47.184 UTC [450] DETAIL:  parameters: $1 = 'cancelado', $2 = '20', $3 = '9980'
+2026-11-15 14:27:47.363 UTC [450] LOG:  duration: 179.090 ms  execute <unnamed>: SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+2026-11-15 14:27:47.363 UTC [450] DETAIL:  parameters: $1 = 'cancelado', $2 = '20', $3 = '9980'
+2026-11-15 14:27:47.364 UTC [450] LOG:  duration: 179.086 ms  plan:
+	Query Text: SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+	Query Parameters: $1 = 'cancelado', $2 = '20', $3 = '9980'
+	Limit  (cost=27079.95..27082.29 rows=20 width=301) (actual time=173.127..179.055 rows=20 loops=1)
+	  Buffers: shared hit=4835 read=16125, temp read=1319 written=1964
+	  ->  Gather Merge  (cost=25915.54..30741.21 rows=41360 width=301) (actual time=169.053..178.777 rows=10000 loops=1)
+	        Workers Planned: 2
+	        Workers Launched: 2
+	        Buffers: shared hit=4835 read=16125, temp read=1319 written=1964
+	        ->  Sort  (cost=24915.52..24967.22 rows=20680 width=301) (actual time=129.593..129.924 rows=3446 loops=3)
+	              Sort Key: criado_em DESC, id DESC
+	              Sort Method: external merge  Disk: 5656kB
+	              Buffers: shared hit=4835 read=16125, temp read=1319 written=1964
+	              Worker 0:  Sort Method: external merge  Disk: 5064kB
+	              Worker 1:  Sort Method: external merge  Disk: 4968kB
+	              ->  Parallel Seq Scan on pedidos  (cost=0.00..23438.17 rows=20680 width=301) (actual time=0.033..110.059 rows=16667 loops=3)
+	                    Filter: (status = 'cancelado'::text)
+	                    Rows Removed by Filter: 150000
+	                    Buffers: shared hit=4709 read=16125

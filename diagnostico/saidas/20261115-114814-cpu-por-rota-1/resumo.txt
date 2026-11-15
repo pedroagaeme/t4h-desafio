@@ -1,0 +1,27 @@
+CPU consumida por requisição (ms de CPU), uma requisição por vez, sem carga concorrente
+rota                                peso    tempo(ms)  banco(ms)   api(ms)  parcela banco
+cliente                               25         18.3       7.37      5.62            57%
+cliente-por-email                     15         48.1      37.48      5.28            88%
+pedidos-do-cliente                    20        142.0     110.09     34.58            76%
+pedidos-por-status-entregue-p500      15        370.3     368.54      6.93            98%
+busca-produtos-cadeira                15         27.1      16.98      4.86            78%
+vendas-por-dia                         8        195.6     188.14     96.73            66%
+top-produtos                           2       1083.2    1069.74      5.69           100%
+pedidos-por-status-pago-p1             0        271.7     271.07      7.90            97%
+pedidos-por-status-pago-p1000          0        547.6     542.61      6.87            99%
+
+Mix do k6 (pesos > 0): banco 123.76 ms de CPU por requisição, api 18.73 ms
+Requisições/s que 1 CPU do banco sustentaria nesse mix: 8.1
+
+Parcela do banco por rota dentro do mix (peso x CPU do banco):
+  cliente                              1.5%
+  cliente-por-email                    4.5%
+  pedidos-do-cliente                  17.8%
+  pedidos-por-status-entregue-p500    44.7%
+  busca-produtos-cadeira               2.1%
+  vendas-por-dia                      12.2%
+  top-produtos                        17.3%
+
+CPU de fundo (controle): banco 0.0137 CPU, api 0.0014 CPU
+Limites: 30 requisições por rota, sequenciais; o docker exec de cada leitura soma um
+custo pequeno e fixo ao delta; o k6 mistura rotas em paralelo (o cache e as esperas mudam).

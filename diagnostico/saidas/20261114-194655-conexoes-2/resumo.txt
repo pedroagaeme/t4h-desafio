@@ -1,0 +1,11 @@
+rotulo: conexoes-2
+data: 2026-11-14 19:46:55 -0300
+vus: 20 duracao: 60s aquecimento: 15s semente: 42
+janela_s: 30 espera_s: 10 pausa_ms: 100
+commit: a122332
+
+carga   conexões=84 connect min=3.5 max=496.5 ms | query min=0.5 max=197.3 ms
+ocioso  conexões=278 connect min=3.8 max=15.3 ms | query min=0.4 max=1.4 ms
+
+CPU do banco na fase ociosa: delta usage_usec = 2043783 µs em 278 conexões (inclui ruído de fundo do Postgres)
+Para a mediana: sort -t, -k2 -n diagnostico/saidas/<pasta>/conexoes.csv (filtre a fase com grep)

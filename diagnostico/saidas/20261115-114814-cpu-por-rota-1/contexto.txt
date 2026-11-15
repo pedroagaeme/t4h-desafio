@@ -1,0 +1,6 @@
+rotulo: cpu-por-rota-1
+data: 2026-11-15T11:48:14-03:00
+commit: a122332
+arquivos alterados sem commit: 4
+N por rota: 30   controle: 20s
+fundo banco: 13.688289 µs/ms   fundo api: 1.378345 µs/ms

@@ -1,0 +1,37 @@
+2026-11-15 14:27:56.975 UTC [480] LOG:  duration: 0.511 ms  parse <unnamed>: SELECT p.id AS pedido_id, p.criado_em, p.observacoes, i.quantidade, i.preco_unitario_centavos
+	       FROM pedidos p
+	       JOIN itens_pedido i ON i.pedido_id = p.id
+	      WHERE p.criado_em::date BETWEEN $1 AND $2
+	        AND p.status <> 'cancelado'
+2026-11-15 14:27:56.975 UTC [480] LOG:  duration: 0.785 ms  bind <unnamed>: SELECT p.id AS pedido_id, p.criado_em, p.observacoes, i.quantidade, i.preco_unitario_centavos
+	       FROM pedidos p
+	       JOIN itens_pedido i ON i.pedido_id = p.id
+	      WHERE p.criado_em::date BETWEEN $1 AND $2
+	        AND p.status <> 'cancelado'
+2026-11-15 14:27:56.975 UTC [480] DETAIL:  parameters: $1 = '2024-03-01', $2 = '2024-03-07'
+2026-11-15 14:27:57.078 UTC [480] LOG:  duration: 102.764 ms  execute <unnamed>: SELECT p.id AS pedido_id, p.criado_em, p.observacoes, i.quantidade, i.preco_unitario_centavos
+	       FROM pedidos p
+	       JOIN itens_pedido i ON i.pedido_id = p.id
+	      WHERE p.criado_em::date BETWEEN $1 AND $2
+	        AND p.status <> 'cancelado'
+2026-11-15 14:27:57.078 UTC [480] DETAIL:  parameters: $1 = '2024-03-01', $2 = '2024-03-07'
+2026-11-15 14:27:57.078 UTC [480] LOG:  duration: 102.760 ms  plan:
+	Query Text: SELECT p.id AS pedido_id, p.criado_em, p.observacoes, i.quantidade, i.preco_unitario_centavos
+	       FROM pedidos p
+	       JOIN itens_pedido i ON i.pedido_id = p.id
+	      WHERE p.criado_em::date BETWEEN $1 AND $2
+	        AND p.status <> 'cancelado'
+	Query Parameters: $1 = '2024-03-01', $2 = '2024-03-07'
+	Gather  (cost=1000.43..33702.48 rows=6756 width=299) (actual time=0.697..66.261 rows=12951 loops=1)
+	  Workers Planned: 2
+	  Workers Launched: 2
+	  Buffers: shared hit=22405 read=15741
+	  ->  Nested Loop  (cost=0.43..32026.88 rows=2815 width=299) (actual time=0.225..68.997 rows=4317 loops=3)
+	        Buffers: shared hit=22405 read=15741
+	        ->  Parallel Seq Scan on pedidos p  (cost=0.00..25521.50 rows=938 width=291) (actual time=0.200..53.538 rows=1438 loops=3)
+	              Filter: ((status <> 'cancelado'::text) AND ((criado_em)::date >= '2024-03-01'::date) AND ((criado_em)::date <= '2024-03-07'::date))
+	              Rows Removed by Filter: 165228
+	              Buffers: shared hit=5093 read=15741
+	        ->  Index Scan using idx_itens_pedido_pedido_id on itens_pedido i  (cost=0.43..6.90 rows=4 width=12) (actual time=0.010..0.010 rows=3 loops=4315)
+	              Index Cond: (pedido_id = p.id)
+	              Buffers: shared hit=17312

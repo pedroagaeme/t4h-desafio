@@ -1,0 +1,9 @@
+rotulo: conexoes-controle-1
+data: 2026-11-14 20:22:28 -0300
+janela_s: 30 espera_s: 20
+commit: a122332
+
+janela lida: 30.2 s
+usage_usec (delta): 375168 µs
+CPU médio do banco: 0.012 CPUs
+períodos: 20, throttled: 0

@@ -1,0 +1,84 @@
+2026-11-15 14:27:58.459 UTC [483] LOG:  duration: 0.807 ms  parse <unnamed>: SELECT pr.id, pr.nome, pr.categoria,
+	            sum(i.quantidade) AS unidades,
+	            sum(i.quantidade * i.preco_unitario_centavos) AS receita_centavos
+	       FROM itens_pedido i
+	       JOIN pedidos p ON p.id = i.pedido_id
+	       JOIN produtos pr ON pr.id = i.produto_id
+	      WHERE p.status <> 'cancelado'
+	      GROUP BY pr.id, pr.nome, pr.categoria
+	      ORDER BY receita_centavos DESC, pr.id
+	      LIMIT $1
+2026-11-15 14:27:58.461 UTC [483] LOG:  duration: 2.130 ms  bind <unnamed>: SELECT pr.id, pr.nome, pr.categoria,
+	            sum(i.quantidade) AS unidades,
+	            sum(i.quantidade * i.preco_unitario_centavos) AS receita_centavos
+	       FROM itens_pedido i
+	       JOIN pedidos p ON p.id = i.pedido_id
+	       JOIN produtos pr ON pr.id = i.produto_id
+	      WHERE p.status <> 'cancelado'
+	      GROUP BY pr.id, pr.nome, pr.categoria
+	      ORDER BY receita_centavos DESC, pr.id
+	      LIMIT $1
+2026-11-15 14:27:58.461 UTC [483] DETAIL:  parameters: $1 = '10'
+2026-11-15 14:27:59.749 UTC [483] LOG:  duration: 1287.621 ms  execute <unnamed>: SELECT pr.id, pr.nome, pr.categoria,
+	            sum(i.quantidade) AS unidades,
+	            sum(i.quantidade * i.preco_unitario_centavos) AS receita_centavos
+	       FROM itens_pedido i
+	       JOIN pedidos p ON p.id = i.pedido_id
+	       JOIN produtos pr ON pr.id = i.produto_id
+	      WHERE p.status <> 'cancelado'
+	      GROUP BY pr.id, pr.nome, pr.categoria
+	      ORDER BY receita_centavos DESC, pr.id
+	      LIMIT $1
+2026-11-15 14:27:59.749 UTC [483] DETAIL:  parameters: $1 = '10'
+2026-11-15 14:27:59.749 UTC [483] LOG:  duration: 1287.613 ms  plan:
+	Query Text: SELECT pr.id, pr.nome, pr.categoria,
+	            sum(i.quantidade) AS unidades,
+	            sum(i.quantidade * i.preco_unitario_centavos) AS receita_centavos
+	       FROM itens_pedido i
+	       JOIN pedidos p ON p.id = i.pedido_id
+	       JOIN produtos pr ON pr.id = i.produto_id
+	      WHERE p.status <> 'cancelado'
+	      GROUP BY pr.id, pr.nome, pr.categoria
+	      ORDER BY receita_centavos DESC, pr.id
+	      LIMIT $1
+	Query Parameters: $1 = '10'
+	Limit  (cost=57109.33..57109.35 rows=10 width=56) (actual time=1222.441..1287.599 rows=10 loops=1)
+	  Buffers: shared hit=7169 read=23802
+	  ->  Sort  (cost=57109.33..57159.33 rows=20000 width=56) (actual time=1222.439..1287.597 rows=10 loops=1)
+	        Sort Key: (sum((i.quantidade * i.preco_unitario_centavos))) DESC, pr.id
+	        Sort Method: top-N heapsort  Memory: 27kB
+	        Buffers: shared hit=7169 read=23802
+	        ->  Finalize HashAggregate  (cost=56477.13..56677.13 rows=20000 width=56) (actual time=1218.221..1285.280 rows=19206 loops=1)
+	              Group Key: pr.id
+	              Batches: 1  Memory Usage: 3089kB
+	              Buffers: shared hit=7163 read=23802
+	              ->  Gather  (cost=51977.13..56177.13 rows=40000 width=56) (actual time=1195.559..1271.662 rows=57618 loops=1)
+	                    Workers Planned: 2
+	                    Workers Launched: 2
+	                    Buffers: shared hit=7163 read=23802
+	                    ->  Partial HashAggregate  (cost=50977.13..51177.13 rows=20000 width=56) (actual time=1191.732..1194.733 rows=19206 loops=3)
+	                          Group Key: pr.id
+	                          Batches: 1  Memory Usage: 3089kB
+	                          Buffers: shared hit=7163 read=23802
+	                          Worker 0:  Batches: 1  Memory Usage: 3089kB
+	                          Worker 1:  Batches: 1  Memory Usage: 3089kB
+	                          ->  Hash Join  (cost=26423.83..45347.54 rows=562959 width=48) (actual time=176.668..872.680 rows=450000 loops=3)
+	                                Hash Cond: (i.produto_id = pr.id)
+	                                Buffers: shared hit=7163 read=23802
+	                                ->  Parallel Hash Join  (cost=25783.83..43229.47 rows=562959 width=12) (actual time=171.589..578.589 rows=450000 loops=3)
+	                                      Hash Cond: (i.pedido_id = p.id)
+	                                      Buffers: shared hit=6587 read=23802
+	                                      ->  Parallel Seq Scan on itens_pedido i  (cost=0.00..15805.00 rows=625000 width=16) (actual time=0.048..101.971 rows=500000 loops=3)
+	                                            Buffers: shared hit=1398 read=8157
+	                                      ->  Parallel Hash  (cost=23438.17..23438.17 rows=187653 width=4) (actual time=149.314..149.314 rows=150000 loops=3)
+	                                            Buckets: 524288  Batches: 1  Memory Usage: 21760kB
+	                                            Buffers: shared hit=5189 read=15645
+	                                            ->  Parallel Seq Scan on pedidos p  (cost=0.00..23438.17 rows=187653 width=4) (actual time=0.022..30.304 rows=150000 loops=3)
+	                                                  Filter: (status <> 'cancelado'::text)
+	                                                  Rows Removed by Filter: 16667
+	                                                  Buffers: shared hit=5189 read=15645
+	                                ->  Hash  (cost=390.00..390.00 rows=20000 width=40) (actual time=4.839..4.840 rows=20000 loops=3)
+	                                      Buckets: 32768  Batches: 1  Memory Usage: 1696kB
+	                                      Buffers: shared hit=570
+	                                      ->  Seq Scan on produtos pr  (cost=0.00..390.00 rows=20000 width=40) (actual time=0.015..1.468 rows=20000 loops=3)
+	                                            Buffers: shared hit=570
