@@ -1,0 +1,17 @@
+Medição: 05-pgpool
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        568
+Requisições/s:      7.74
+Tempo de resposta:  mediana 546.9 ms | p95 10092.2 ms | p99 21799.7 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               151       98.5 ms       202.9 ms      302.4 ms      0.0%    
+cliente-por-email     83        506.2 ms      874.5 ms      922.2 ms      0.0%    
+pedidos-do-cliente    120       1812.0 ms     3203.5 ms     3749.5 ms     0.0%    
+pedidos-por-status    79        6788.3 ms     14723.9 ms    23131.4 ms    0.0%    
+busca-produtos        88        230.6 ms      406.2 ms      603.3 ms      0.0%    
+vendas-por-dia        39        5614.6 ms     12537.0 ms    15199.6 ms    0.0%    
+top-produtos          8         26090.0 ms    37057.1 ms    38629.0 ms    0.0%    
