@@ -52,7 +52,7 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 | 1 | 1 | Índice em `itens_pedido(pedido_id)` | [Docs 11.1](https://www.postgresql.org/docs/16/indexes-intro.html), [Docs 5.4.5](https://www.postgresql.org/docs/16/ddl-constraints.html) | Aplicada e medida | p95 `pedidos-do-cliente`: 22594,2 ms<br>p95 total: 20065,9 ms<br>3,32 req/s | p95 `pedidos-do-cliente`: 11518,9 ms<br>p95 total: 10717,4 ms<br>5,45 req/s | `*-00-linha-de-base` | `*-01-indice-itens-pedido` | H1 confirmada: p95 da rota caiu 49%, p95 total 47%, req/s +64%. `vendas-por-dia` piorou (p95 7948,6 → 14053,4 ms), causa não investigada |
 | 2 | 1 | Índice em `pedidos(cliente_id)` | mesmas do #1 | Aplicada e medida | p95 `pedidos-do-cliente`: 11518,9 ms<br>p95 total: 10717,4 ms<br>5,45 req/s | p95 `pedidos-do-cliente`: 9388,6 ms<br>p95 total: 8796,8 ms<br>6,50 req/s | `*-01-indice-itens-pedido` | `*-02-indice-pedidos-cliente` | H2 confirmada: p95 da rota caiu 18,5%, p95 total 17,9%, req/s +19,3%. Ganho bem menor que o do #1; o banco segue em ~100% de CPU. `pedidos-por-status` melhorou sem ter sido alterada (p95 11004,6 → 8707,0 ms), causa não investigada |
 | 3 | 2 | Trocar a conexão por consulta (`db.js`) por um `pg.Pool` na API | [node-postgres: Pooling](https://node-postgres.com/features/pooling), [node-postgres: Pool API](https://node-postgres.com/apis/pool), [Docs: client/server model](https://www.postgresql.org/docs/16/connect-estab.html) | Pesquisada, teste futuro | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | preencher | `*-02-indice-pedidos-cliente` | preencher | preencher |
-| 4 | 2 | PgBouncer como serviço novo entre a API e o banco (API sem pool) | [PgBouncer: Features](https://www.pgbouncer.org/features.html), [PgBouncer: configuração](https://www.pgbouncer.org/config.html), [Yugabyte](https://www.yugabyte.com/blog/database-connection-management/) | Pesquisada, teste futuro | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | preencher | `*-02-indice-pedidos-cliente` | preencher | preencher |
+| 4 | 2 | PgBouncer como serviço novo entre a API e o banco (API sem pool) | [PgBouncer: Features](https://www.pgbouncer.org/features.html), [PgBouncer: configuração](https://www.pgbouncer.org/config.html), [Yugabyte](https://www.yugabyte.com/blog/database-connection-management/) | Aplicada e medida | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | mediana total: 704,6 ms<br>p95 total: 7335,1 ms<br>p99 total: 13101,0 ms<br>8,61 req/s | `*-02-indice-pedidos-cliente` | `*-04-pgbouncer` | H4 confirmada: mediana total −21,5%, p95 −16,6%, p99 −20,9%, req/s +32,5%. Custo: contêiner novo com 3,9% de CPU média e 7,9 MiB de memória média. O banco segue em ~101% de CPU |
 | 5 | 2 | Pgpool-II como serviço novo entre a API e o banco (API sem pool) | [Pgpool-II](https://www.pgpool.net/mediawiki/index.php/Main_Page) | Pesquisada, teste futuro | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | preencher | `*-02-indice-pedidos-cliente` | preencher | preencher |
 
 Status: `Aplicada e medida`, `Aplicada, sem ganho` ou `Pesquisada, teste futuro`. Ao medir, troque o status e preencha Depois (medianas das 3 execuções), a pasta e a conclusão.
@@ -101,6 +101,36 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 |---|---|---|---|---|
 | banco | 100,3% | 99,9% | 398,9 | 466,5 |
 | api | 11,7% | 9,7% | 39,5 | 54,0 |
+
+### Detalhe do #4 (mediana das 3 execuções, antes → depois)
+
+Rótulo `04-pgbouncer`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Configuração: imagem `edoburu/pgbouncer:v1.26.1-p0`, `pool_mode = transaction`, `default_pool_size = 10`, limites do contêiner de 0,25 CPU e 64 MB; a API sem pool, apontando para o PgBouncer.
+
+- `resultados/20261116-113231-04-pgbouncer`
+- `resultados/20261116-113402-04-pgbouncer`
+- `resultados/20261116-113534-04-pgbouncer`
+
+| rota | req | mediana (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|
+| total | 417 → 558 | 897,5 → 704,6 | 8796,8 → 7335,1 | 16570,7 → 13101,0 |
+| cliente | 111 → 153 | 303,3 → 199,3 | 586,4 → 710,8 | 700,5 → 899,3 |
+| cliente-por-email | 64 → 80 | 894,2 → 601,0 | 1178,8 → 1283,6 | 1475,3 → 1517,5 |
+| pedidos-do-cliente | 83 → 116 | 5687,9 → 4590,3 | 9388,6 → 8042,7 | 10396,2 → 9688,9 |
+| pedidos-por-status | 57 → 78 | 5598,3 → 3400,4 | 8707,0 → 7861,8 | 12159,9 → 13757,6 |
+| busca-produtos | 70 → 86 | 495,2 → 303,3 | 714,7 → 763,2 | 918,1 → 995,8 |
+| vendas-por-dia | 29 → 38 | 5622,4 → 3787,1 | 14231,2 → 8411,6 | 20786,4 → 9993,8 |
+| top-produtos | 5 → 8 | 22700,8 → 14461,4 | 24875,9 → 20464,0 | 26467,6 → 21238,4 |
+
+Requisições por segundo: 6,50 → 8,61 (8,48, 8,61 e 8,82 nas 3 execuções). Erros: 0,0% nas 3 execuções.
+Nas 3 execuções, a mediana total (700,1, 704,6 e 708,8 ms), o p95 total (7272,5, 7335,1 e 7364,1 ms) e o p99 total (13554,4, 11243,3 e 13101,0 ms) ficaram abaixo dos valores de antes (897,5, 8796,8 e 16570,7 ms).
+
+Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
+
+| contêiner | cpu média | cpu máx | mem média (MiB) | mem máx (MiB) |
+|---|---|---|---|---|
+| banco | 100,3% → 100,9% | 99,9% → 100,0% | 398,9 → 404,9 | 466,5 → 460,0 |
+| pgbouncer | — → 3,9% | — → 7,8% | — → 7,9 | — → 8,2 |
+| api | 11,7% → 14,5% | 9,7% → 9,6% | 39,5 → 37,5 | 54,0 → 45,5 |
 
 ## Hipóteses (escritas antes de aplicar)
 
