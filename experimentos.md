@@ -56,7 +56,7 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 | 5 | 2 | Pgpool-II como serviço novo entre a API e o banco (API sem pool) | [Pgpool-II](https://www.pgpool.net/mediawiki/index.php/Main_Page), [Pgpool-II: pooling](https://www.pgpool.net/docs/latest/en/html/runtime-config-connection-pooling.html), [Pgpool-II: conexões](https://www.pgpool.net/docs/latest/en/html/runtime-config-connection.html) | Aplicada, sem ganho | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | mediana total: 546,9 ms<br>p95 total: 10688,1 ms<br>p99 total: 20878,4 ms<br>7,74 req/s | `*-02-indice-pedidos-cliente` | `*-05-pgpool` | H5 não confirmada: mediana total −39,1% e req/s +19,1%, mas p95 +21,5% e p99 +26,0%. Custo: contêiner novo com 11,8% de CPU média e 226,0 MiB de memória média. Configuração: limite de 256 MB e `enable_shared_relcache = off` (ver detalhe) |
 | 6 | 2 | Índice em `pedidos(status, criado_em DESC, id DESC)` | [Docs 11.3](https://www.postgresql.org/docs/16/indexes-multicolumn.html), [Docs 11.4](https://www.postgresql.org/docs/16/indexes-ordering.html), [Winand: Pipelined/Indexed ORDER BY](https://use-the-index-luke.com/sql/sorting-grouping/indexed-order-by) | Aplicada e medida | mediana total: 798,4 ms<br>p95 total: 7593,9 ms<br>p99 total: 12456,6 ms<br>8,82 req/s | mediana total: 498,7 ms<br>p95 total: 5704,1 ms<br>p99 total: 9063,8 ms<br>14,83 req/s | `*-03-pool-api` | `*-06-indice-pedidos-status` | H6 confirmada: mediana total −37,5%, p95 −24,9%, p99 −27,2%, req/s +68,1%. As 21 comparações por rota (7 rotas × mediana, p95 e p99) melhoraram; `pedidos-por-status`: mediana 3090,7 → 680,0 ms. Sem serviço novo; o banco segue em ~100% de CPU. Tamanho do índice não medido |
 | 7 | 2 | Índice em `pedidos(criado_em)` e filtro de `vendas-por-dia` reescrito como intervalo (`criado_em >= $1::date AND criado_em < $2::date + 1`, no lugar de `criado_em::date BETWEEN`); índice e reescrita só funcionam juntos, então são uma única mudança | [Winand: datas e índices](https://use-the-index-luke.com/sql/where-clause/obfuscation/dates) | Aplicada e medida | mediana `vendas-por-dia`: 1695,7 ms<br>p95 `vendas-por-dia`: 7386,2 ms<br>p99 `vendas-por-dia`: 9995,5 ms<br>14,83 req/s | mediana `vendas-por-dia`: 826,7 ms<br>p95 `vendas-por-dia`: 2583,2 ms<br>p99 `vendas-por-dia`: 3617,9 ms<br>17,34 req/s | `*-06-indice-pedidos-status` | `*-07-indice-pedidos-criado-em` | H7 confirmada: `vendas-por-dia` mediana −51,2%, p95 −65,0%, p99 −63,8%. Total: mediana −1,9%, p95 −19,7%, p99 −8,2%, req/s +16,9%. O p95 e o p99 de `pedidos-por-status` pioraram (3449,8 → 5999,1 e 6721,0 → 12042,7 ms), causa não investigada. Sem serviço novo; tamanho do índice não medido |
-| 8 | 2 | View materializada `mv_top_produtos` com as somas por produto (pedidos não cancelados) e índice `(receita_centavos DESC, id)`; `top-produtos` passa a ler a view no lugar de agregar `itens_pedido` | [Docs 41.3](https://www.postgresql.org/docs/16/rules-materializedviews.html), [REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-refreshmaterializedview.html), [Docs 11.4](https://www.postgresql.org/docs/16/indexes-ordering.html) | Pesquisada, teste futuro | mediana `top-produtos`: 7438,2 ms<br>p95 `top-produtos`: 14929,4 ms<br>p99 `top-produtos`: 16410,2 ms<br>17,34 req/s | preencher | `*-07-indice-pedidos-criado-em` | preencher | preencher |
+| 8 | 2 | View materializada `mv_top_produtos` com as somas por produto (pedidos não cancelados) e índice `(receita_centavos DESC, id)`; `top-produtos` passa a ler a view no lugar de agregar `itens_pedido` | [Docs 41.3](https://www.postgresql.org/docs/16/rules-materializedviews.html), [REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-refreshmaterializedview.html), [Docs 11.4](https://www.postgresql.org/docs/16/indexes-ordering.html) | Aplicada e medida | mediana `top-produtos`: 7438,2 ms<br>p95 `top-produtos`: 14929,4 ms<br>p99 `top-produtos`: 16410,2 ms<br>17,34 req/s | mediana `top-produtos`: 70,7 ms<br>p95 `top-produtos`: 289,5 ms<br>p99 `top-produtos`: 364,6 ms<br>42,86 req/s | `*-07-indice-pedidos-criado-em` | `*-08-view-top-produtos` | H8 confirmada: `top-produtos` mediana −99,0%, p95 −98,1%, p99 −97,8%. Total: mediana −40,3%, p95 −62,4%, p99 −71,1%, req/s +147,2%. As 21 comparações por rota melhoraram. Memória do banco subiu (máx. 449,0 → 495,8 MiB de 512 MiB), causa não investigada. Sem serviço novo; a view ocupa 2664 kB (com o índice) e um `REFRESH` leva 1012,4 ms |
 
 Status: `Aplicada e medida`, `Aplicada, sem ganho` ou `Pesquisada, teste futuro`. Ao medir, troque o status e preencha Depois (medianas das 3 execuções), a pasta e a conclusão.
 
@@ -263,6 +263,40 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 |---|---|---|---|---|
 | banco | 99,8% → 98,5% | 99,7% → 99,8% | 424,6 → 413,2 | 483,4 → 449,0 |
 | api | 16,1% → 16,3% | 9,4% → 9,8% | 38,5 → 34,2 | 55,1 → 44,0 |
+
+### Detalhe do #8 (mediana das 3 execuções, antes → depois)
+
+Rótulo `08-view-top-produtos`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Mudança, em um só commit: `banco/07-view-top-produtos.sql` (`CREATE MATERIALIZED VIEW mv_top_produtos` com as somas por produto dos pedidos não cancelados, índice `(receita_centavos DESC, id)` e `ANALYZE`) e, em `api/src/rotas.js`, a consulta de `top-produtos` passa a ler a view. Estado de comparação: o #7.
+
+Uma primeira série de 3 execuções foi descartada porque o `contexto.txt` mostrava 1 arquivo sem commit (uma pasta de diagnóstico ainda não comitada); as 3 execuções abaixo foram feitas depois de comitar.
+
+- `resultados/20261116-154430-08-view-top-produtos`
+- `resultados/20261116-154551-08-view-top-produtos`
+- `resultados/20261116-154712-08-view-top-produtos`
+
+| rota | req | mediana (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|
+| total | 1091 → 2604 | 489,0 → 291,9 | 4579,8 → 1721,2 | 8316,2 → 2401,0 |
+| cliente | 287 → 681 | 103,0 → 82,1 | 370,2 → 299,6 | 591,4 → 442,0 |
+| cliente-por-email | 169 → 377 | 515,4 → 380,4 | 807,7 → 598,0 | 993,7 → 697,9 |
+| pedidos-do-cliente | 223 → 532 | 2287,0 → 1200,7 | 5140,7 → 2386,3 | 6292,5 → 2871,2 |
+| pedidos-por-status | 153 → 362 | 606,6 → 378,5 | 5999,1 → 1014,2 | 12042,7 → 1738,7 |
+| busca-produtos | 167 → 396 | 234,3 → 194,0 | 494,7 → 402,0 | 607,8 → 579,7 |
+| vendas-por-dia | 75 → 207 | 826,7 → 390,6 | 2583,2 → 709,8 | 3617,9 → 1010,0 |
+| top-produtos | 18 → 44 | 7438,2 → 70,7 | 14929,4 → 289,5 | 16410,2 → 364,6 |
+
+Requisições por segundo: 17,34 → 42,86 (43,08, 42,81 e 42,86 nas 3 execuções). Erros: 0,0% nas 3 execuções.
+Em `top-produtos`, nas 3 execuções a mediana (27,6, 80,5 e 70,7 ms), o p95 (310,8, 289,5 e 199,8 ms) e o p99 (369,7, 364,6 e 354,8 ms) ficaram abaixo dos valores de antes (7438,2, 14929,4 e 16410,2 ms). A rota teve 44 a 45 requisições por execução, então os percentis têm pouca amostra, e a mediana variou de 27,6 a 80,5 ms entre as execuções.
+Por rota, as 21 comparações (7 rotas × mediana, p95 e p99) melhoraram.
+
+Custo da view (`diagnostico/saidas/20261116-153548-top-produtos-view/`): `pg_total_relation_size('mv_top_produtos')` = 2664 kB, somando a view e o índice. O tempo de criação não foi medido; como proxy, `REFRESH MATERIALIZED VIEW mv_top_produtos` levou 1012,357 ms, porque o `REFRESH` executa de novo a mesma consulta (documentação do PostgreSQL). O `EXPLAIN (ANALYZE, BUFFERS)` da consulta nova usa `Index Scan using idx_mv_top_produtos_receita` e leva 0,119 ms em uma chamada, contra 1287,6 ms e 1329,5 ms nos planos anteriores; são execuções únicas, com estado de cache diferente.
+
+Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
+
+| contêiner | cpu média | cpu máx | mem média (MiB) | mem máx (MiB) |
+|---|---|---|---|---|
+| banco | 98,5% → 91,4% | 99,8% → 99,6% | 413,2 → 473,4 | 449,0 → 495,8 |
+| api | 16,3% → 38,9% | 9,8% → 50,4% | 34,2 → 40,6 | 44,0 → 49,4 |
 
 ## Hipóteses (escritas antes de aplicar)
 
