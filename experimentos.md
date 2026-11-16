@@ -53,7 +53,7 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 | 2 | 1 | Índice em `pedidos(cliente_id)` | mesmas do #1 | Aplicada e medida | p95 `pedidos-do-cliente`: 11518,9 ms<br>p95 total: 10717,4 ms<br>5,45 req/s | p95 `pedidos-do-cliente`: 9388,6 ms<br>p95 total: 8796,8 ms<br>6,50 req/s | `*-01-indice-itens-pedido` | `*-02-indice-pedidos-cliente` | H2 confirmada: p95 da rota caiu 18,5%, p95 total 17,9%, req/s +19,3%. Ganho bem menor que o do #1; o banco segue em ~100% de CPU. `pedidos-por-status` melhorou sem ter sido alterada (p95 11004,6 → 8707,0 ms), causa não investigada |
 | 3 | 2 | Trocar a conexão por consulta (`db.js`) por um `pg.Pool` na API | [node-postgres: Pooling](https://node-postgres.com/features/pooling), [node-postgres: Pool API](https://node-postgres.com/apis/pool), [Docs: client/server model](https://www.postgresql.org/docs/16/connect-estab.html) | Pesquisada, teste futuro | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | preencher | `*-02-indice-pedidos-cliente` | preencher | preencher |
 | 4 | 2 | PgBouncer como serviço novo entre a API e o banco (API sem pool) | [PgBouncer: Features](https://www.pgbouncer.org/features.html), [PgBouncer: configuração](https://www.pgbouncer.org/config.html), [Yugabyte](https://www.yugabyte.com/blog/database-connection-management/) | Pesquisada, teste futuro | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | preencher | `*-02-indice-pedidos-cliente` | preencher | preencher |
-| 5 | 2 | Pgpool-II como serviço novo entre a API e o banco (API sem pool) | [Pgpool-II](https://www.pgpool.net/mediawiki/index.php/Main_Page) | Pesquisada, teste futuro | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | preencher | `*-02-indice-pedidos-cliente` | preencher | preencher |
+| 5 | 2 | Pgpool-II como serviço novo entre a API e o banco (API sem pool) | [Pgpool-II](https://www.pgpool.net/mediawiki/index.php/Main_Page), [Pgpool-II: pooling](https://www.pgpool.net/docs/latest/en/html/runtime-config-connection-pooling.html), [Pgpool-II: conexões](https://www.pgpool.net/docs/latest/en/html/runtime-config-connection.html) | Aplicada, sem ganho | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | mediana total: 546,9 ms<br>p95 total: 10688,1 ms<br>p99 total: 20878,4 ms<br>7,74 req/s | `*-02-indice-pedidos-cliente` | `*-05-pgpool` | H5 não confirmada: mediana total −39,1% e req/s +19,1%, mas p95 +21,5% e p99 +26,0%. Custo: contêiner novo com 11,8% de CPU média e 226,0 MiB de memória média. Configuração: limite de 256 MB e `enable_shared_relcache = off` (ver detalhe) |
 
 Status: `Aplicada e medida`, `Aplicada, sem ganho` ou `Pesquisada, teste futuro`. Ao medir, troque o status e preencha Depois (medianas das 3 execuções), a pasta e a conclusão.
 
@@ -101,6 +101,41 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 |---|---|---|---|---|
 | banco | 100,3% | 99,9% | 398,9 | 466,5 |
 | api | 11,7% | 9,7% | 39,5 | 54,0 |
+
+### Detalhe do #5 (mediana das 3 execuções, antes → depois)
+
+Rótulo `05-pgpool`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), commit `57da491`, 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Configuração: imagem `pgpool/pgpool:latest` (Pgpool-II 4.4.2, criada em 2023-03-03, `sha256:3782cbf9…`), configurada por variáveis `PGPOOL_PARAMS_*` (backend `banco:5432`, escuta em `*:9999`, `connection_cache = on`), limites do contêiner de 0,25 CPU e 256 MB, e `enable_shared_relcache = off`. A API sem pool, apontando para o Pgpool-II.
+
+Duas escolhas fora do padrão: limite de memória de 256 MB (com 128 MB o contêiner ficou com 127,8 MiB de uso em repouso, no limite) e `enable_shared_relcache = off` (o padrão da imagem é `on`; com ele ligado, processos-filho do Pgpool-II terminaram por falha de segmentação sob carga, causa não investigada).
+
+- `resultados/20261116-124032-05-pgpool`
+- `resultados/20261116-124335-05-pgpool`
+- `resultados/20261116-131529-05-pgpool`
+
+| rota | req | mediana (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|
+| total | 417 → 536 | 897,5 → 546,9 | 8796,8 → 10688,1 | 16570,7 → 20878,4 |
+| cliente | 111 → 146 | 303,3 → 99,5 | 586,4 → 202,9 | 700,5 → 349,6 |
+| cliente-por-email | 64 → 80 | 894,2 → 507,6 | 1178,8 → 1102,0 | 1475,3 → 1391,4 |
+| pedidos-do-cliente | 83 → 109 | 5687,9 → 1812,0 | 9388,6 → 3579,6 | 10396,2 → 3895,6 |
+| pedidos-por-status | 57 → 75 | 5598,3 → 6788,3 | 8707,0 → 12895,4 | 12159,9 → 16404,9 |
+| busca-produtos | 70 → 86 | 495,2 → 290,1 | 714,7 → 496,8 | 918,1 → 728,0 |
+| vendas-por-dia | 29 → 38 | 5622,4 → 5913,9 | 14231,2 → 14839,1 | 20786,4 → 17625,2 |
+| top-produtos | 5 → 7 | 22700,8 → 26090,0 | 24875,9 → 38327,0 | 26467,6 → 39030,9 |
+
+Requisições por segundo: 6,50 → 7,74 (8,04, 7,74 e 7,38 nas 3 execuções). Erros: 0,0% nas 3 execuções.
+Nas 3 execuções, a mediana total (507,6, 546,9 e 601,6 ms) ficou abaixo do valor de antes (897,5 ms), e o p95 total (10688,1, 10092,2 e 11459,6 ms) e o p99 total (20878,4, 21799,7 e 19877,2 ms) ficaram acima dos de antes (8796,8 e 16570,7 ms).
+Por rota, 13 das 21 comparações (7 rotas × mediana, p95 e p99) melhoraram. As 8 que pioraram: mediana de `pedidos-por-status` (5598,3 → 6788,3 ms), p95 de `pedidos-por-status` (8707,0 → 12895,4 ms), p99 de `pedidos-por-status` (12159,9 → 16404,9 ms), mediana de `vendas-por-dia` (5622,4 → 5913,9 ms), p95 de `vendas-por-dia` (14231,2 → 14839,1 ms), mediana de `top-produtos` (22700,8 → 26090,0 ms), p95 de `top-produtos` (24875,9 → 38327,0 ms) e p99 de `top-produtos` (26467,6 → 39030,9 ms).
+
+Comparação com os outros dois (mesmo estado de antes): contra o #4 (PgBouncer), mediana −22,4%, p95 +45,7%, p99 +59,4%, req/s −10,1%; contra o #3 (`pg.Pool`), mediana −31,5%, p95 +40,7%, p99 +67,6%, req/s −12,2%.
+
+Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
+
+| contêiner | cpu média | cpu máx | mem média (MiB) | mem máx (MiB) |
+|---|---|---|---|---|
+| banco | 100,3% → 98,1% | 99,9% → 99,8% | 398,9 → 420,1 | 466,5 → 472,1 |
+| pgpool | — → 11,8% | — → 9,8% | — → 226,0 | — → 227,6 |
+| api | 11,7% → 15,8% | 9,7% → 9,3% | 39,5 → 41,9 | 54,0 → 60,0 |
 
 ## Hipóteses (escritas antes de aplicar)
 
