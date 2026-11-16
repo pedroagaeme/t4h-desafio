@@ -1,0 +1,6 @@
+rotulo: cpu-por-rota-pos-8-3
+data: 2026-11-16T16:18:40-03:00
+commit: f86d59f
+arquivos alterados sem commit: 0
+N por rota: 30   controle: 20s
+fundo banco: 13.149050 µs/ms   fundo api: 1.307647 µs/ms

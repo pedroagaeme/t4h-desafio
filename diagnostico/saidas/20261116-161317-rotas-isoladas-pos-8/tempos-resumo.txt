@@ -1,0 +1,13 @@
+rota                                 1a_chamada   mediana_demais        min        max  nao_200
+cliente                                 24.0 ms           2.8 ms     2.3 ms     3.1 ms        0
+cliente-por-email                       45.0 ms          27.7 ms    27.4 ms    27.9 ms        0
+pedidos-do-cliente                      13.8 ms           9.2 ms     8.8 ms     9.7 ms        0
+pedidos-por-status-pago-p1             110.8 ms          23.9 ms    20.0 ms    54.3 ms        0
+pedidos-por-status-pago-p1000           77.7 ms          40.2 ms    27.2 ms    54.7 ms        0
+pedidos-por-status-cancelado-p500       55.0 ms          11.0 ms    10.4 ms    11.7 ms        0
+busca-produtos-cadeira                  17.1 ms          11.1 ms    11.0 ms    11.4 ms        0
+busca-produtos-lumin                    11.1 ms          11.7 ms    11.2 ms    12.3 ms        0
+vendas-por-dia                         307.3 ms         229.2 ms   115.9 ms   277.1 ms        0
+top-produtos                             3.6 ms           2.3 ms     2.0 ms     3.0 ms        0
+
+1a_chamada pode incluir cache frio; mediana_demais/min/max usam as repetições seguintes.

@@ -1,0 +1,22 @@
+rotulo: pgss-pos-8
+data: 2026-11-16 16:24:05 -0300
+COMPOSE_FILE: docker-compose.yml:diagnostico/pgss.yml
+commit: f86d59f
+versão: PostgreSQL 16.4 (Debian 16.4-1.pgdg120+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit
+
+configuração do Postgres:
+  shared_preload_libraries = pg_stat_statements
+  shared_buffers = 128MB
+  max_parallel_workers_per_gather = 2
+  work_mem = 4MB
+  effective_cache_size = 4GB
+  max_connections = 100
+  pg_stat_statements.track = top
+  pg_stat_statements.max = 5000
+
+pg_stat_statements_info (stats_reset deve ser logo após o aquecimento; dealloc > 0 significa comandos perdidos):
+ dealloc |          stats_reset          
+---------+-------------------------------
+       0 | 2026-11-16 19:22:56.949978+00
+(1 row)
+

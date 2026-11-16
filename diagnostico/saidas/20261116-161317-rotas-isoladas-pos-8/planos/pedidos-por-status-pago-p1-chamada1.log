@@ -1,0 +1,33 @@
+2026-11-16 19:13:33.439 UTC [251] LOG:  duration: 0.164 ms  parse <unnamed>: SELECT count(*) AS total FROM pedidos WHERE status = $1
+2026-11-16 19:13:33.439 UTC [251] LOG:  duration: 0.136 ms  bind <unnamed>: SELECT count(*) AS total FROM pedidos WHERE status = $1
+2026-11-16 19:13:33.439 UTC [251] DETAIL:  parameters: $1 = 'pago'
+2026-11-16 19:13:33.460 UTC [251] LOG:  duration: 20.882 ms  execute <unnamed>: SELECT count(*) AS total FROM pedidos WHERE status = $1
+2026-11-16 19:13:33.460 UTC [251] DETAIL:  parameters: $1 = 'pago'
+2026-11-16 19:13:33.460 UTC [251] LOG:  duration: 20.875 ms  plan:
+	Query Text: SELECT count(*) AS total FROM pedidos WHERE status = $1
+	Query Parameters: $1 = 'pago'
+	Finalize Aggregate  (cost=11316.34..11316.35 rows=1 width=8) (actual time=18.259..20.869 rows=1 loops=1)
+	  Buffers: shared hit=1485 read=1
+	  ->  Gather  (cost=11316.13..11316.34 rows=2 width=8) (actual time=18.198..20.862 rows=3 loops=1)
+	        Workers Planned: 2
+	        Workers Launched: 2
+	        Buffers: shared hit=1485 read=1
+	        ->  Partial Aggregate  (cost=10316.13..10316.14 rows=1 width=8) (actual time=15.015..15.015 rows=1 loops=3)
+	              Buffers: shared hit=1485 read=1
+	              ->  Parallel Index Only Scan using idx_pedidos_status_criado_em_id on pedidos  (cost=0.42..10003.04 rows=125236 width=0) (actual time=0.032..11.297 rows=100000 loops=3)
+	                    Index Cond: (status = 'pago'::text)
+	                    Heap Fetches: 0
+	                    Buffers: shared hit=1485 read=1
+2026-11-16 19:13:33.461 UTC [251] LOG:  duration: 0.059 ms  parse <unnamed>: SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+2026-11-16 19:13:33.461 UTC [251] LOG:  duration: 0.088 ms  bind <unnamed>: SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+2026-11-16 19:13:33.461 UTC [251] DETAIL:  parameters: $1 = 'pago', $2 = '20', $3 = '0'
+2026-11-16 19:13:33.461 UTC [251] LOG:  duration: 0.084 ms  execute <unnamed>: SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+2026-11-16 19:13:33.461 UTC [251] DETAIL:  parameters: $1 = 'pago', $2 = '20', $3 = '0'
+2026-11-16 19:13:33.461 UTC [251] LOG:  duration: 0.081 ms  plan:
+	Query Text: SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+	Query Parameters: $1 = 'pago', $2 = '20', $3 = '0'
+	Limit  (cost=0.42..6.26 rows=20 width=298) (actual time=0.027..0.062 rows=20 loops=1)
+	  Buffers: shared hit=23
+	  ->  Index Scan using idx_pedidos_status_criado_em_id on pedidos  (cost=0.42..87665.45 rows=300567 width=298) (actual time=0.026..0.059 rows=20 loops=1)
+	        Index Cond: (status = 'pago'::text)
+	        Buffers: shared hit=23

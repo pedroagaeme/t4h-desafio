@@ -1,0 +1,10 @@
+rota,peso,n,tempo_ms_por_req,banco_ms_por_req,api_ms_por_req,parcela_banco
+cliente,25,30,9.1,1.03,2.62,0.281
+cliente-por-email,15,30,35.3,26.03,3.05,0.895
+pedidos-do-cliente,20,30,18.7,3.62,10.24,0.261
+pedidos-por-status-entregue-p500,15,30,22.5,13.47,3.46,0.795
+busca-produtos-cadeira,15,30,18.4,9.96,2.65,0.790
+vendas-por-dia,8,30,155.1,38.23,78.72,0.327
+top-produtos,2,30,8.9,1.01,2.51,0.287
+pedidos-por-status-pago-p1,0,30,43.5,45.34,3.24,0.933
+pedidos-por-status-pago-p1000,0,30,48.7,51.34,3.46,0.937

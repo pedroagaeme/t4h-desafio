@@ -1,0 +1,27 @@
+2026-11-16 19:13:38.578 UTC [251] LOG:  duration: 0.096 ms  parse <unnamed>: SELECT count(*) AS total FROM pedidos WHERE status = $1
+2026-11-16 19:13:38.578 UTC [251] LOG:  duration: 0.092 ms  bind <unnamed>: SELECT count(*) AS total FROM pedidos WHERE status = $1
+2026-11-16 19:13:38.578 UTC [251] DETAIL:  parameters: $1 = 'cancelado'
+2026-11-16 19:13:38.584 UTC [251] LOG:  duration: 6.282 ms  execute <unnamed>: SELECT count(*) AS total FROM pedidos WHERE status = $1
+2026-11-16 19:13:38.584 UTC [251] DETAIL:  parameters: $1 = 'cancelado'
+2026-11-16 19:13:38.584 UTC [251] LOG:  duration: 6.278 ms  plan:
+	Query Text: SELECT count(*) AS total FROM pedidos WHERE status = $1
+	Query Parameters: $1 = 'cancelado'
+	Aggregate  (cost=2093.76..2093.77 rows=1 width=8) (actual time=6.272..6.273 rows=1 loops=1)
+	  Buffers: shared hit=305
+	  ->  Index Only Scan using idx_pedidos_status_criado_em_id on pedidos  (cost=0.42..1968.10 rows=50267 width=0) (actual time=0.024..4.445 rows=50000 loops=1)
+	        Index Cond: (status = 'cancelado'::text)
+	        Heap Fetches: 0
+	        Buffers: shared hit=305
+2026-11-16 19:13:38.585 UTC [251] LOG:  duration: 0.080 ms  parse <unnamed>: SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+2026-11-16 19:13:38.585 UTC [251] LOG:  duration: 0.070 ms  bind <unnamed>: SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+2026-11-16 19:13:38.585 UTC [251] DETAIL:  parameters: $1 = 'cancelado', $2 = '20', $3 = '9980'
+2026-11-16 19:13:38.591 UTC [251] LOG:  duration: 6.072 ms  execute <unnamed>: SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+2026-11-16 19:13:38.591 UTC [251] DETAIL:  parameters: $1 = 'cancelado', $2 = '20', $3 = '9980'
+2026-11-16 19:13:38.591 UTC [251] LOG:  duration: 6.069 ms  plan:
+	Query Text: SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+	Query Parameters: $1 = 'cancelado', $2 = '20', $3 = '9980'
+	Limit  (cost=15244.86..15275.41 rows=20 width=298) (actual time=6.041..6.055 rows=20 loops=1)
+	  Buffers: shared hit=10063
+	  ->  Index Scan using idx_pedidos_status_criado_em_id on pedidos  (cost=0.42..76783.23 rows=50267 width=298) (actual time=0.017..5.786 rows=10000 loops=1)
+	        Index Cond: (status = 'cancelado'::text)
+	        Buffers: shared hit=10063

@@ -1,0 +1,17 @@
+Medição: pgss-pos-8
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        2760
+Requisições/s:      45.92
+Tempo de resposta:  mediana 276.5 ms | p95 1609.1 ms | p99 2222.6 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               719       60.0 ms       250.1 ms      378.1 ms      0.0%    
+cliente-por-email     399       351.0 ms      602.3 ms      692.7 ms      0.0%    
+pedidos-do-cliente    571       1093.8 ms     2220.4 ms     2604.2 ms     0.0%    
+pedidos-por-status    384       331.6 ms      973.2 ms      1338.6 ms     0.0%    
+busca-produtos        418       191.4 ms      358.7 ms      482.0 ms      0.0%    
+vendas-por-dia        222       336.9 ms      593.2 ms      656.0 ms      0.0%    
+top-produtos          47        81.3 ms       250.6 ms      369.6 ms      0.0%    
