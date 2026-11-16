@@ -137,3 +137,14 @@ Cada hipótese é suposição até a medição de `experimentos.md` confirmar ou
 ## IA
 
 Usei IA para escrever estes scripts e buscar fontes; rodei tudo e as conclusões são minhas (ver seção 9 do artigo).
+## Rodada 3: estado após o #8
+
+Saídas em `diagnostico/saidas/`: `20261116-161317-rotas-isoladas-pos-8`, `20261116-161636-cpu-por-rota-pos-8-1`, `…161738-…-2`, `…161840-…-3` e `20261116-162256-pgss-pos-8`.
+
+**Rota sozinha (`rotas-isoladas`).** `pedidos-do-cliente` dispara 17 consultas, que somam 0,2–0,3 ms no banco; a requisição leva 9,2 ms (mediana). `cliente-por-email` leva 27,7 ms e dispara 1 consulta (24,8–26,6 ms no banco). `vendas-por-dia`: 14,0 ms no banco na 2ª chamada e 229,2 ms de mediana HTTP.
+
+**CPU por requisição (3 execuções).** Mix do k6: banco 11,48–12,34 ms, API 10,42–11,17 ms. `pedidos-do-cliente`: banco 3,42–3,62 ms, API 10,24–11,41 ms. `vendas-por-dia`: banco 38,2–40,6 ms, API 78,1–84,1 ms. A medição é sequencial e subestima o banco sob carga (veja abaixo).
+
+**Sob carga (`pgss-pos-8`, 20 usuários, 60 s).** 45,92 req/s; mediana 276,5 ms, p95 1609,1 ms, p99 2222,6 ms; 0% de erros. Banco: 0,91 CPU de 1,00, throttled em 82,5% dos períodos, memória de 202,1 MiB no fim e 254,9 MiB no pico. API: 0,41 CPU de 0,50, throttled em 62,5% dos períodos, memória de 35,2 MiB no fim e 51,2 MiB no pico.
+
+**Tempo do banco por consulta.** `lower(email)`: 39,1% (235,0 ms por chamada). `vendas-por-dia`: 16,9% (182,3 ms; 12,9 mil linhas por chamada). Listagem por status: 16,6% (103,4 ms; 21195 blocos temporários escritos). `count(*)` por status: 15,2% (95,1 ms). `produtos ILIKE`: 11,4% (65,6 ms). As consultas de `pedidos-do-cliente` somam 0,6%.
