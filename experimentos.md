@@ -54,7 +54,7 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 | 3 | 2 | Trocar a conexão por consulta (`db.js`) por um `pg.Pool` na API | [node-postgres: Pooling](https://node-postgres.com/features/pooling), [node-postgres: Pool API](https://node-postgres.com/apis/pool), [Docs: client/server model](https://www.postgresql.org/docs/16/connect-estab.html) | Aplicada e medida | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | mediana total: 798,4 ms<br>p95 total: 7593,9 ms<br>p99 total: 12456,6 ms<br>8,82 req/s | `*-02-indice-pedidos-cliente` | `*-03-pool-api` | H3 confirmada: mediana total −11,0%, p95 −13,7%, p99 −24,8%, req/s +35,7%. O banco segue em CPU alta (média 91,7%, máx 100,0%) e a memória média da API subiu de 39,5 para 87,3 MiB. `pedidos-do-cliente` melhorou menos: mediana −24,5%, p95 −7,3%, p99 +4,0% |
 | 4 | 2 | PgBouncer como serviço novo entre a API e o banco (API sem pool) | [PgBouncer: Features](https://www.pgbouncer.org/features.html), [PgBouncer: configuração](https://www.pgbouncer.org/config.html), [Yugabyte](https://www.yugabyte.com/blog/database-connection-management/) | Aplicada e medida | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | mediana total: 704,6 ms<br>p95 total: 7335,1 ms<br>p99 total: 13101,0 ms<br>8,61 req/s | `*-02-indice-pedidos-cliente` | `*-04-pgbouncer` | H4 confirmada: mediana total −21,5%, p95 −16,6%, p99 −20,9%, req/s +32,5%. Custo: contêiner novo com 3,9% de CPU média e 7,9 MiB de memória média. O banco segue em ~101% de CPU |
 | 5 | 2 | Pgpool-II como serviço novo entre a API e o banco (API sem pool) | [Pgpool-II](https://www.pgpool.net/mediawiki/index.php/Main_Page), [Pgpool-II: pooling](https://www.pgpool.net/docs/latest/en/html/runtime-config-connection-pooling.html), [Pgpool-II: conexões](https://www.pgpool.net/docs/latest/en/html/runtime-config-connection.html) | Aplicada, sem ganho | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | mediana total: 546,9 ms<br>p95 total: 10688,1 ms<br>p99 total: 20878,4 ms<br>7,74 req/s | `*-02-indice-pedidos-cliente` | `*-05-pgpool` | H5 não confirmada: mediana total −39,1% e req/s +19,1%, mas p95 +21,5% e p99 +26,0%. Custo: contêiner novo com 11,8% de CPU média e 226,0 MiB de memória média. Configuração: limite de 256 MB e `enable_shared_relcache = off` (ver detalhe) |
-| 6 | 2 | Índice em `pedidos(status, criado_em DESC, id DESC)` | [Docs 11.3](https://www.postgresql.org/docs/16/indexes-multicolumn.html), [Docs 11.4](https://www.postgresql.org/docs/16/indexes-ordering.html), [Winand: Pipelined/Indexed ORDER BY](https://use-the-index-luke.com/sql/sorting-grouping/indexed-order-by) | Pesquisada, teste futuro | mediana total: 798,4 ms<br>p95 total: 7593,9 ms<br>p99 total: 12456,6 ms<br>8,82 req/s | preencher | `*-03-pool-api` | preencher | preencher |
+| 6 | 2 | Índice em `pedidos(status, criado_em DESC, id DESC)` | [Docs 11.3](https://www.postgresql.org/docs/16/indexes-multicolumn.html), [Docs 11.4](https://www.postgresql.org/docs/16/indexes-ordering.html), [Winand: Pipelined/Indexed ORDER BY](https://use-the-index-luke.com/sql/sorting-grouping/indexed-order-by) | Aplicada e medida | mediana total: 798,4 ms<br>p95 total: 7593,9 ms<br>p99 total: 12456,6 ms<br>8,82 req/s | mediana total: 498,7 ms<br>p95 total: 5704,1 ms<br>p99 total: 9063,8 ms<br>14,83 req/s | `*-03-pool-api` | `*-06-indice-pedidos-status` | H6 confirmada: mediana total −37,5%, p95 −24,9%, p99 −27,2%, req/s +68,1%. As 21 comparações por rota (7 rotas × mediana, p95 e p99) melhoraram; `pedidos-por-status`: mediana 3090,7 → 680,0 ms. Sem serviço novo; o banco segue em ~100% de CPU. Tamanho do índice não medido |
 
 Status: `Aplicada e medida`, `Aplicada, sem ganho` ou `Pesquisada, teste futuro`. Ao medir, troque o status e preencha Depois (medianas das 3 execuções), a pasta e a conclusão.
 
@@ -196,6 +196,39 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 | banco | 100,3% → 98,1% | 99,9% → 99,8% | 398,9 → 420,1 | 466,5 → 472,1 |
 | pgpool | — → 11,8% | — → 9,8% | — → 226,0 | — → 227,6 |
 | api | 11,7% → 15,8% | 9,7% → 9,3% | 39,5 → 41,9 | 54,0 → 60,0 |
+
+### Detalhe do #6 (mediana das 3 execuções, antes → depois)
+
+Rótulo `06-indice-pedidos-status`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), commit `37e770e`, 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Mudança: `banco/05-indice-pedidos-status.sql`, com `CREATE INDEX idx_pedidos_status_criado_em_id ON pedidos (status, criado_em DESC, id DESC)`. Estado de comparação: o #3 (`pg.Pool`).
+
+`EXPLAIN (ANALYZE, BUFFERS)` da listagem com `status = 'pago'`, `ORDER BY criado_em DESC, id DESC`, `LIMIT 20`: página 1 (`OFFSET 0`) e página 1000 (`OFFSET 19980`) usam `Index Scan using idx_pedidos_status_criado_em_id`, sem etapa `Sort`, com 0,385 ms e 33,560 ms de execução.
+
+- `resultados/20261116-134534-06-indice-pedidos-status`
+- `resultados/20261116-134734-06-indice-pedidos-status`
+- `resultados/20261116-134927-06-indice-pedidos-status`
+
+| rota | req | mediana (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|
+| total | 558 → 920 | 798,4 → 498,7 | 7593,9 → 5704,1 | 12456,6 → 9063,8 |
+| cliente | 153 → 241 | 201,6 → 109,0 | 703,6 → 398,3 | 1131,2 → 592,2 |
+| cliente-por-email | 82 → 141 | 685,1 → 506,5 | 1194,5 → 797,1 | 1403,9 → 956,4 |
+| pedidos-do-cliente | 114 → 196 | 4296,0 → 2463,7 | 8704,7 → 6742,4 | 10807,2 → 8733,0 |
+| pedidos-por-status | 79 → 133 | 3090,7 → 680,0 | 6748,1 → 3449,8 | 12942,0 → 6721,0 |
+| busca-produtos | 87 → 138 | 383,6 → 286,9 | 875,7 → 599,4 | 1469,3 → 760,0 |
+| vendas-por-dia | 39 → 63 | 2916,7 → 1695,7 | 8050,7 → 7386,2 | 10611,9 → 9995,5 |
+| top-produtos | 8 → 15 | 12252,3 → 9588,0 | 21509,6 → 18367,9 | 21902,8 → 19411,3 |
+
+Requisições por segundo: 8,82 → 14,83 (15,08, 14,71 e 14,83 nas 3 execuções). Erros: 0,0% nas 3 execuções.
+Nas 3 execuções, a mediana total (498,7, 504,8 e 496,9 ms), o p95 total (5897,7, 5704,1 e 4734,5 ms) e o p99 total (8539,1, 9063,8 e 10696,5 ms) ficaram abaixo dos valores de antes (798,4, 7593,9 e 12456,6 ms).
+
+Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
+
+| contêiner | cpu média | cpu máx | mem média (MiB) | mem máx (MiB) |
+|---|---|---|---|---|
+| banco | 91,7% → 99,8% | 100,0% → 99,7% | 403,0 → 424,6 | 458,7 → 483,4 |
+| api | 11,0% → 16,1% | 9,9% → 9,4% | 87,3 → 38,5 | 96,6 → 55,1 |
+
+A memória média da API caiu de 87,3 para 38,5 MiB com o `db.js` ainda usando `pg.Pool`; causa não investigada.
 
 ## Hipóteses (escritas antes de aplicar)
 
