@@ -55,7 +55,7 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 | 4 | 2 | PgBouncer como serviço novo entre a API e o banco (API sem pool) | [PgBouncer: Features](https://www.pgbouncer.org/features.html), [PgBouncer: configuração](https://www.pgbouncer.org/config.html), [Yugabyte](https://www.yugabyte.com/blog/database-connection-management/) | Aplicada e medida | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | mediana total: 704,6 ms<br>p95 total: 7335,1 ms<br>p99 total: 13101,0 ms<br>8,61 req/s | `*-02-indice-pedidos-cliente` | `*-04-pgbouncer` | H4 confirmada: mediana total −21,5%, p95 −16,6%, p99 −20,9%, req/s +32,5%. Custo: contêiner novo com 3,9% de CPU média e 7,9 MiB de memória média. O banco segue em ~101% de CPU |
 | 5 | 2 | Pgpool-II como serviço novo entre a API e o banco (API sem pool) | [Pgpool-II](https://www.pgpool.net/mediawiki/index.php/Main_Page), [Pgpool-II: pooling](https://www.pgpool.net/docs/latest/en/html/runtime-config-connection-pooling.html), [Pgpool-II: conexões](https://www.pgpool.net/docs/latest/en/html/runtime-config-connection.html) | Aplicada, sem ganho | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | mediana total: 546,9 ms<br>p95 total: 10688,1 ms<br>p99 total: 20878,4 ms<br>7,74 req/s | `*-02-indice-pedidos-cliente` | `*-05-pgpool` | H5 não confirmada: mediana total −39,1% e req/s +19,1%, mas p95 +21,5% e p99 +26,0%. Custo: contêiner novo com 11,8% de CPU média e 226,0 MiB de memória média. Configuração: limite de 256 MB e `enable_shared_relcache = off` (ver detalhe) |
 | 6 | 2 | Índice em `pedidos(status, criado_em DESC, id DESC)` | [Docs 11.3](https://www.postgresql.org/docs/16/indexes-multicolumn.html), [Docs 11.4](https://www.postgresql.org/docs/16/indexes-ordering.html), [Winand: Pipelined/Indexed ORDER BY](https://use-the-index-luke.com/sql/sorting-grouping/indexed-order-by) | Aplicada e medida | mediana total: 798,4 ms<br>p95 total: 7593,9 ms<br>p99 total: 12456,6 ms<br>8,82 req/s | mediana total: 498,7 ms<br>p95 total: 5704,1 ms<br>p99 total: 9063,8 ms<br>14,83 req/s | `*-03-pool-api` | `*-06-indice-pedidos-status` | H6 confirmada: mediana total −37,5%, p95 −24,9%, p99 −27,2%, req/s +68,1%. As 21 comparações por rota (7 rotas × mediana, p95 e p99) melhoraram; `pedidos-por-status`: mediana 3090,7 → 680,0 ms. Sem serviço novo; o banco segue em ~100% de CPU. Tamanho do índice não medido |
-| 7 | 2 | Índice em `pedidos(criado_em)` e filtro de `vendas-por-dia` reescrito como intervalo (`criado_em >= $1::date AND criado_em < $2::date + 1`, no lugar de `criado_em::date BETWEEN`); índice e reescrita só funcionam juntos, então são uma única mudança | [Winand: datas e índices](https://use-the-index-luke.com/sql/where-clause/obfuscation/dates) | Pesquisada, teste futuro | mediana `vendas-por-dia`: 1695,7 ms<br>p95 `vendas-por-dia`: 7386,2 ms<br>p99 `vendas-por-dia`: 9995,5 ms<br>14,83 req/s | preencher | `*-06-indice-pedidos-status` | preencher | preencher |
+| 7 | 2 | Índice em `pedidos(criado_em)` e filtro de `vendas-por-dia` reescrito como intervalo (`criado_em >= $1::date AND criado_em < $2::date + 1`, no lugar de `criado_em::date BETWEEN`); índice e reescrita só funcionam juntos, então são uma única mudança | [Winand: datas e índices](https://use-the-index-luke.com/sql/where-clause/obfuscation/dates) | Aplicada e medida | mediana `vendas-por-dia`: 1695,7 ms<br>p95 `vendas-por-dia`: 7386,2 ms<br>p99 `vendas-por-dia`: 9995,5 ms<br>14,83 req/s | mediana `vendas-por-dia`: 826,7 ms<br>p95 `vendas-por-dia`: 2583,2 ms<br>p99 `vendas-por-dia`: 3617,9 ms<br>17,34 req/s | `*-06-indice-pedidos-status` | `*-07-indice-pedidos-criado-em` | H7 confirmada: `vendas-por-dia` mediana −51,2%, p95 −65,0%, p99 −63,8%. Total: mediana −1,9%, p95 −19,7%, p99 −8,2%, req/s +16,9%. O p95 e o p99 de `pedidos-por-status` pioraram (3449,8 → 5999,1 e 6721,0 → 12042,7 ms), causa não investigada. Sem serviço novo; tamanho do índice não medido |
 
 Status: `Aplicada e medida`, `Aplicada, sem ganho` ou `Pesquisada, teste futuro`. Ao medir, troque o status e preencha Depois (medianas das 3 execuções), a pasta e a conclusão.
 
@@ -230,6 +230,38 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 | api | 11,0% → 16,1% | 9,9% → 9,4% | 87,3 → 38,5 | 96,6 → 55,1 |
 
 A memória média da API caiu de 87,3 para 38,5 MiB com o `db.js` ainda usando `pg.Pool`; causa não investigada.
+
+### Detalhe do #7 (mediana das 3 execuções, antes → depois)
+
+Rótulo `07-indice-pedidos-criado-em`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Mudança, em um só commit: `banco/06-indice-pedidos-criado-em.sql` (`CREATE INDEX idx_pedidos_criado_em ON pedidos (criado_em)`) e, em `api/src/rotas.js`, o filtro de `vendas-por-dia` de `p.criado_em::date BETWEEN $1 AND $2` para `p.criado_em >= $1::date AND p.criado_em < $2::date + 1`. Estado de comparação: o #6.
+
+Conferência antes de medir: para 2024-03-01 a 2024-03-07, `criado_em::date BETWEEN` e o intervalo contaram os mesmos 4793 pedidos. O `EXPLAIN (ANALYZE, BUFFERS)` da consulta nova usa `Bitmap Index Scan on idx_pedidos_criado_em` e `Parallel Bitmap Heap Scan on pedidos` (descarta 159 linhas por processo, contra 165228 da leitura sequencial anterior), com 37,7 ms de execução em uma chamada, contra 102,8 ms no plano anterior; são execuções únicas, com estado de cache diferente.
+
+- `resultados/20261116-144036-07-indice-pedidos-criado-em`
+- `resultados/20261116-144254-07-indice-pedidos-criado-em`
+- `resultados/20261116-144427-07-indice-pedidos-criado-em`
+
+| rota | req | mediana (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|
+| total | 920 → 1091 | 498,7 → 489,0 | 5704,1 → 4579,8 | 9063,8 → 8316,2 |
+| cliente | 241 → 287 | 109,0 → 103,0 | 398,3 → 370,2 | 592,2 → 591,4 |
+| cliente-por-email | 141 → 169 | 506,5 → 515,4 | 797,1 → 807,7 | 956,4 → 993,7 |
+| pedidos-do-cliente | 196 → 223 | 2463,7 → 2287,0 | 6742,4 → 5140,7 | 8733,0 → 6292,5 |
+| pedidos-por-status | 133 → 153 | 680,0 → 606,6 | 3449,8 → 5999,1 | 6721,0 → 12042,7 |
+| busca-produtos | 138 → 167 | 286,9 → 234,3 | 599,4 → 494,7 | 760,0 → 607,8 |
+| vendas-por-dia | 63 → 75 | 1695,7 → 826,7 | 7386,2 → 2583,2 | 9995,5 → 3617,9 |
+| top-produtos | 15 → 18 | 9588,0 → 7438,2 | 18367,9 → 14929,4 | 19411,3 → 16410,2 |
+
+Requisições por segundo: 14,83 → 17,34 (17,34, 17,88 e 17,10 nas 3 execuções). Erros: 0,0% nas 3 execuções.
+Em `vendas-por-dia`, nas 3 execuções a mediana (885,9, 826,7 e 814,3 ms), o p95 (2482,7, 3215,3 e 2583,2 ms) e o p99 (3759,0, 3617,9 e 3594,8 ms) ficaram abaixo dos valores de antes (1695,7, 7386,2 e 9995,5 ms).
+Por rota, 16 das 21 comparações (7 rotas × mediana, p95 e p99) melhoraram. As 5 que pioraram: mediana de `cliente-por-email` (506,5 → 515,4 ms), p95 de `cliente-por-email` (797,1 → 807,7 ms), p99 de `cliente-por-email` (956,4 → 993,7 ms), p95 de `pedidos-por-status` (3449,8 → 5999,1 ms) e p99 de `pedidos-por-status` (6721,0 → 12042,7 ms).
+
+Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
+
+| contêiner | cpu média | cpu máx | mem média (MiB) | mem máx (MiB) |
+|---|---|---|---|---|
+| banco | 99,8% → 98,5% | 99,7% → 99,8% | 424,6 → 413,2 | 483,4 → 449,0 |
+| api | 16,1% → 16,3% | 9,4% → 9,8% | 38,5 → 34,2 | 55,1 → 44,0 |
 
 ## Hipóteses (escritas antes de aplicar)
 
