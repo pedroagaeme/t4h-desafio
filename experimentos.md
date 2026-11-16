@@ -51,7 +51,7 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 |---|---|---|---|---|---|---|---|---|---|
 | 1 | 1 | Índice em `itens_pedido(pedido_id)` | [Docs 11.1](https://www.postgresql.org/docs/16/indexes-intro.html), [Docs 5.4.5](https://www.postgresql.org/docs/16/ddl-constraints.html) | Aplicada e medida | p95 `pedidos-do-cliente`: 22594,2 ms<br>p95 total: 20065,9 ms<br>3,32 req/s | p95 `pedidos-do-cliente`: 11518,9 ms<br>p95 total: 10717,4 ms<br>5,45 req/s | `*-00-linha-de-base` | `*-01-indice-itens-pedido` | H1 confirmada: p95 da rota caiu 49%, p95 total 47%, req/s +64%. `vendas-por-dia` piorou (p95 7948,6 → 14053,4 ms), causa não investigada |
 | 2 | 1 | Índice em `pedidos(cliente_id)` | mesmas do #1 | Aplicada e medida | p95 `pedidos-do-cliente`: 11518,9 ms<br>p95 total: 10717,4 ms<br>5,45 req/s | p95 `pedidos-do-cliente`: 9388,6 ms<br>p95 total: 8796,8 ms<br>6,50 req/s | `*-01-indice-itens-pedido` | `*-02-indice-pedidos-cliente` | H2 confirmada: p95 da rota caiu 18,5%, p95 total 17,9%, req/s +19,3%. Ganho bem menor que o do #1; o banco segue em ~100% de CPU. `pedidos-por-status` melhorou sem ter sido alterada (p95 11004,6 → 8707,0 ms), causa não investigada |
-| 3 | 2 | Trocar a conexão por consulta (`db.js`) por um `pg.Pool` na API | [node-postgres: Pooling](https://node-postgres.com/features/pooling), [node-postgres: Pool API](https://node-postgres.com/apis/pool), [Docs: client/server model](https://www.postgresql.org/docs/16/connect-estab.html) | Pesquisada, teste futuro | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | preencher | `*-02-indice-pedidos-cliente` | preencher | preencher |
+| 3 | 2 | Trocar a conexão por consulta (`db.js`) por um `pg.Pool` na API | [node-postgres: Pooling](https://node-postgres.com/features/pooling), [node-postgres: Pool API](https://node-postgres.com/apis/pool), [Docs: client/server model](https://www.postgresql.org/docs/16/connect-estab.html) | Aplicada e medida | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | mediana total: 798,4 ms<br>p95 total: 7593,9 ms<br>p99 total: 12456,6 ms<br>8,82 req/s | `*-02-indice-pedidos-cliente` | `*-03-pool-api` | H3 confirmada: mediana total −11,0%, p95 −13,7%, p99 −24,8%, req/s +35,7%. O banco segue em CPU alta (média 91,7%, máx 100,0%) e a memória média da API subiu de 39,5 para 87,3 MiB. `pedidos-do-cliente` melhorou menos: mediana −24,5%, p95 −7,3%, p99 +4,0% |
 | 4 | 2 | PgBouncer como serviço novo entre a API e o banco (API sem pool) | [PgBouncer: Features](https://www.pgbouncer.org/features.html), [PgBouncer: configuração](https://www.pgbouncer.org/config.html), [Yugabyte](https://www.yugabyte.com/blog/database-connection-management/) | Pesquisada, teste futuro | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | preencher | `*-02-indice-pedidos-cliente` | preencher | preencher |
 | 5 | 2 | Pgpool-II como serviço novo entre a API e o banco (API sem pool) | [Pgpool-II](https://www.pgpool.net/mediawiki/index.php/Main_Page) | Pesquisada, teste futuro | mediana total: 897,5 ms<br>p95 total: 8796,8 ms<br>p99 total: 16570,7 ms<br>6,50 req/s | preencher | `*-02-indice-pedidos-cliente` | preencher | preencher |
 
@@ -101,6 +101,35 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 |---|---|---|---|---|
 | banco | 100,3% | 99,9% | 398,9 | 466,5 |
 | api | 11,7% | 9,7% | 39,5 | 54,0 |
+
+### Detalhe do #3 (mediana das 3 execuções, antes → depois)
+
+Rótulo `03-pool-api`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), commit `ac59284`, 0 arquivos sem commit.
+
+- `resultados/20261116-110453-03-pool-api`
+- `resultados/20261116-110622-03-pool-api`
+- `resultados/20261116-110757-03-pool-api`
+
+| rota | req | mediana (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|
+| total | 417 → 558 | 897,5 → 798,4 | 8796,8 → 7593,9 | 16570,7 → 12456,6 |
+| cliente | 111 → 153 | 303,3 → 201,6 | 586,4 → 703,6 | 700,5 → 1131,2 |
+| cliente-por-email | 64 → 82 | 894,2 → 685,1 | 1178,8 → 1194,5 | 1475,3 → 1403,9 |
+| pedidos-do-cliente | 83 → 114 | 5687,9 → 4296,0 | 9388,6 → 8704,7 | 10396,2 → 10807,2 |
+| pedidos-por-status | 57 → 79 | 5598,3 → 3090,7 | 8707,0 → 6748,1 | 12159,9 → 12942,0 |
+| busca-produtos | 70 → 87 | 495,2 → 383,6 | 714,7 → 875,7 | 918,1 → 1469,3 |
+| vendas-por-dia | 29 → 39 | 5622,4 → 2916,7 | 14231,2 → 8050,7 | 20786,4 → 10611,9 |
+| top-produtos | 5 → 8 | 22700,8 → 12252,3 | 24875,9 → 21509,6 | 26467,6 → 21902,8 |
+
+Requisições por segundo: 6,50 → 8,82 (9,51, 8,44 e 8,82 nas 3 execuções). Erros: 0,0% nas 3 execuções.
+Nas 3 execuções, a mediana total (798,4, 801,8 e 699,4 ms), o p95 total (7100,0, 8029,2 e 7593,9 ms) e o p99 total (11022,4, 15327,3 e 12456,6 ms) ficaram abaixo dos valores de antes (897,5, 8796,8 e 16570,7 ms).
+
+Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
+
+| contêiner | cpu média | cpu máx | mem média (MiB) | mem máx (MiB) |
+|---|---|---|---|---|
+| banco | 100,3% → 91,7% | 99,9% → 100,0% | 398,9 → 403,0 | 466,5 → 458,7 |
+| api | 11,7% → 11,0% | 9,7% → 9,9% | 39,5 → 87,3 | 54,0 → 96,6 |
 
 ## Hipóteses (escritas antes de aplicar)
 
