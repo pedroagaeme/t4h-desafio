@@ -1,0 +1,17 @@
+Medição: 04-pgbouncer
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        558
+Requisições/s:      8.82
+Tempo de resposta:  mediana 708.8 ms | p95 7364.1 ms | p99 13101.0 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               153       202.5 ms      710.8 ms      1342.7 ms     0.0%    
+cliente-por-email     82        603.3 ms      1283.6 ms     1719.9 ms     0.0%    
+pedidos-do-cliente    116       4590.3 ms     8330.6 ms     9688.9 ms     0.0%    
+pedidos-por-status    78        3350.2 ms     7861.8 ms     13757.6 ms    0.0%    
+busca-produtos        84        362.3 ms      987.0 ms      1216.6 ms     0.0%    
+vendas-por-dia        38        3787.1 ms     8132.7 ms     9888.3 ms     0.0%    
+top-produtos          7         17309.7 ms    20462.8 ms    21238.4 ms    0.0%    
