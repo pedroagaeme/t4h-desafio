@@ -1,0 +1,17 @@
+Medição: 11-agregacao-vendas-por-dia
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        2682
+Requisições/s:      44.23
+Tempo de resposta:  mediana 395.8 ms | p95 902.1 ms | p99 1894.5 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               682       197.0 ms      305.3 ms      424.5 ms      0.0%    
+cliente-por-email     390       604.2 ms      805.0 ms      900.4 ms      0.0%    
+pedidos-do-cliente    566       391.1 ms      599.0 ms      699.5 ms      0.0%    
+pedidos-por-status    376       603.2 ms      1900.2 ms     3348.5 ms     0.0%    
+busca-produtos        415       303.3 ms      502.9 ms      598.8 ms      0.0%    
+vendas-por-dia        208       701.9 ms      1565.8 ms     2086.0 ms     0.0%    
+top-produtos          45        196.3 ms      400.4 ms      795.9 ms      0.0%    
