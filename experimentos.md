@@ -60,7 +60,7 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 | 9 | 1 e 3 | Junção única (`pedidos LEFT JOIN itens_pedido LEFT JOIN produtos`) em `pedidos-do-cliente`, no lugar de uma consulta de itens por pedido e uma de produto por item; o agrupamento por pedido passa a ser feito em JavaScript | [Winand: Nested Loops, ORMs and the N+1 Problem](https://use-the-index-luke.com/sql/join/nested-loops-join-n1-problem) | Aplicada e medida | mediana `pedidos-do-cliente`: 1200,7 ms<br>p95 `pedidos-do-cliente`: 2386,3 ms<br>p99 `pedidos-do-cliente`: 2871,2 ms<br>42,86 req/s | mediana `pedidos-do-cliente`: 393,9 ms<br>p95 `pedidos-do-cliente`: 767,1 ms<br>p99 `pedidos-do-cliente`: 938,6 ms<br>45,21 req/s | `*-08-view-top-produtos` | `*-09-juncao-pedidos-do-cliente` | H9 confirmada: `pedidos-do-cliente` mediana −67,2%, p95 −67,9%, p99 −67,3%. Total: p95 −47,1%, p99 −39,4%, req/s +5,5%, mas a mediana total subiu de 291,9 para 398,1 ms (+36,4%) e as 18 comparações das outras 6 rotas (mediana, p95 e p99) pioraram; causa não investigada (ver detalhe). A rota passou de 17 para 2 consultas por requisição (pelo código; contagem não medida depois da mudança). Sem serviço novo; CPU média do banco 91,4% → 92,1% |
 | 10 | 3 | View materializada `mv_pedidos_por_status` (status, total) e `pedidos-por-status` lendo a contagem dela no lugar de `count(*)` | [Wiki: Slow Counting](https://wiki.postgresql.org/wiki/Slow_Counting), [Docs 41.3](https://www.postgresql.org/docs/16/rules-materializedviews.html), [REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-refreshmaterializedview.html) | Aplicada e medida | mediana `pedidos-por-status`: 679,4 ms<br>p95 `pedidos-por-status`: 1596,0 ms<br>p99 `pedidos-por-status`: 2473,5 ms<br>45,21 req/s | mediana `pedidos-por-status`: 404,3 ms<br>p95 `pedidos-por-status`: 1203,3 ms<br>p99 `pedidos-por-status`: 1669,5 ms<br>55,57 req/s | `*-09-juncao-pedidos-do-cliente` | `*-10-view-contagem-status` | H10 confirmada: `pedidos-por-status` mediana −40,5%, p95 −24,6%, p99 −32,5% (as 3 execuções melhores que o antes nas 3 métricas). Total: mediana −21,6%, p95 −12,5%, p99 −21,7%, req/s +22,9%. CPU por requisição do banco 20,4 → 15,5 ms (−24,1%). Das 18 comparações das outras 6 rotas, 17 melhoraram e 1 piorou (p99 de `busca-produtos`, +18,7%). Sem serviço novo; a view ocupa 16 kB e um `REFRESH` leva 70,583 ms. A primeira tentativa do #10 não alterou a rota e foi refeita (ver nota no detalhe). Memória do banco: máx. 507,2 MiB de 512 MiB (ver detalhe) |
 | 11 | 3 | `vendas-por-dia` agrupando por dia no banco (`GROUP BY`, `count(DISTINCT p.id)`, `sum`), sem a coluna `observacoes`, no lugar de trazer uma linha por item e agrupar em JavaScript | [Docs 9.21](https://www.postgresql.org/docs/16/functions-aggregate.html) | Aplicada, sem ganho | mediana `vendas-por-dia`: 593,2 ms<br>p95 `vendas-por-dia`: 1025,7 ms<br>p99 `vendas-por-dia`: 1250,7 ms<br>55,57 req/s | mediana `vendas-por-dia`: 605,5 ms<br>p95 `vendas-por-dia`: 1032,9 ms<br>p99 `vendas-por-dia`: 1397,7 ms<br>54,26 req/s | `*-10-view-contagem-status` | `*-11-agregacao-vendas-por-dia` | H11 retestada não confirmada: `vendas-por-dia` mediana +2,1%, p95 +0,7%, p99 +11,8% (mediana acima do antes nas 3 execuções; p95 e p99 abaixo em 1 das 3). Total: mediana −3,7%, p95 −0,6%, p99 +31,3%, req/s −2,4%. A CPU média da API caiu de 43,9% para 5,9% e a do banco subiu de 85,9% para 100,4%; CPU por requisição do banco 15,5 → 18,5 ms (+19,7%). Das 18 comparações das outras 6 rotas, 12 melhoraram e 6 pioraram (de +0,2% a +33,4%): as rotas ligadas à API melhoraram na cauda e `pedidos-por-status` piorou (p95 +32,8%, p99 +33,4%). Não adotada: o código fica na branch `exp-11-agregacao-vendas-por-dia-refeito`, fora da linha principal; o #12 parte do estado após o #10. A primeira tentativa, sobre o estado do #9 com uma view sem uso, também não confirmou (ver nota no detalhe) |
-| 12 | 3 | Índice em `clientes (lower(email))` para `cliente-por-email` | [Docs 11.7](https://www.postgresql.org/docs/16/indexes-expressional.html) | Pesquisada, teste futuro | mediana `cliente-por-email`: preencher (= Depois do experimento anterior)<br>p95 `cliente-por-email`: preencher<br>p99 `cliente-por-email`: preencher | mediana `cliente-por-email`: preencher<br>p95 `cliente-por-email`: preencher<br>p99 `cliente-por-email`: preencher<br>preencher req/s | `*-10-view-contagem-status` | `*-12-indice-email-clientes` | preencher |
+| 12 | 3 | Índice em `clientes (lower(email))` para `cliente-por-email` | [Docs 11.7](https://www.postgresql.org/docs/16/indexes-expressional.html) | Aplicada e medida | mediana `cliente-por-email`: 486,8 ms<br>p95 `cliente-por-email`: 786,7 ms<br>p99 `cliente-por-email`: 899,8 ms<br>55,57 req/s | mediana `cliente-por-email`: 195,3 ms<br>p95 `cliente-por-email`: 507,7 ms<br>p99 `cliente-por-email`: 700,5 ms<br>65,71 req/s | `*-10-view-contagem-status` | `*-12-indice-email-clientes` | H12 confirmada: `cliente-por-email` mediana −59,9%, p95 −35,5%, p99 −22,1% (as 3 execuções melhores que o antes nas 3 métricas). Total: mediana −9,3%, p95 −12,3%, p99 −12,7%, req/s +18,2%. CPU por requisição do banco 15,5 → 9,8 ms (−36,9%); CPU média da API 43,9% → 48,6%, cerca de 97% da quota de 0,5 CPU. Das 18 comparações das outras 6 rotas, 13 melhoraram e 5 pioraram (de +0,6% a +32,1%; a maior em `top-produtos`, com 56 a 66 requisições por execução). Sem serviço novo; o índice ocupa 4.907.008 bytes (4792 kB) e a criação leva 422,075 ms (ver detalhe). A primeira tentativa, sobre o estado do #9 com uma view sem uso, deu resultado parecido (ver nota no detalhe) |
 
 Status: `Aplicada e medida`, `Aplicada, sem ganho` ou `Pesquisada, teste futuro`. Ao medir, troque o status e preencha Depois (medianas das 3 execuções), a pasta e a conclusão.
 
@@ -412,6 +412,46 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 | api | 43,9% → 5,9% | 52,0% → 8,1% | 36,9 → 26,7 | 58,4 → 27,2 |
 
 Nota de método: a primeira tentativa do #11 (`resultados/20261117-181527-…`, `-181648-…` e `-181809-11-agregacao-vendas-por-dia-1a-tentativa`) foi medida sobre o estado do #9 com uma view sem uso no banco (o #10 ainda não alterava a rota; ver o detalhe do #10) e também não confirmou a H11: `vendas-por-dia` mediana 614,5 → 702,1 ms (+14,2%), p95 1075,5 → 1565,8 ms (+45,6%), p99 1276,7 → 2086,0 ms (+63,4%); CPU média da API 37,3% → 5,0% e do banco 95,6% → 97,0%. O `EXPLAIN (ANALYZE, BUFFERS)` da consulta agregada, sem carga (`diagnostico/saidas/20261117-183000-explain-agregacao-vendas-por-dia/`), levou 28,1 ms, com `Sort` por `(dia, id)` e `Gather Merge` com 2 workers antes do `GroupAggregate`; o plano antigo do mesmo período, registrado na Rodada 3, levava 7,6 ms (execuções diferentes, comparação aproximada).
+
+### Detalhe do #12 (mediana das 3 execuções, antes → depois)
+
+Rótulo `12-indice-email-clientes`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Mudança: novo arquivo `banco/09-indice-email-clientes.sql` com `CREATE INDEX idx_clientes_lower_email ON clientes (lower(email))` e `ANALYZE clientes`, aplicado ao recriar o banco (`docker compose down -v && up -d --build`); a consulta da rota (`WHERE lower(email) = lower($1)`) não mudou. O estado de partida é o #10 corrigido; o #11 não foi adotado.
+
+- `resultados/20261117-192805-12-indice-email-clientes`
+- `resultados/20261117-192926-12-indice-email-clientes`
+- `resultados/20261117-193047-12-indice-email-clientes`
+
+Custo (`diagnostico/saidas/20261117-183147-indice-email-clientes/`): índice de 4.907.008 bytes (4792 kB); `CREATE INDEX` em 422,075 ms e `ANALYZE clientes` em 210,318 ms (tempos medidos recriando o índice com o banco já populado). `EXPLAIN (ANALYZE, BUFFERS)` de uma busca por e-mail, sem carga: `Index Scan using idx_clientes_lower_email`, 0,080 ms e 4 buffers (1 em cache e 3 lidos); a Rodada 3 registrava `Seq Scan` com 99.999 linhas descartadas, 1156 buffers e 24,8 ms (outra execução e outro e-mail, comparação aproximada).
+
+| rota | req | mediana (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|
+| total | 3357 → 3973 | 312,0 → 283,1 | 796,5 → 698,6 | 1138,6 → 994,6 |
+| cliente | 871 → 1037 | 188,6 → 194,4 | 491,8 → 494,8 | 619,1 → 685,2 |
+| cliente-por-email | 485 → 570 | 486,8 → 195,3 | 786,7 → 507,7 | 899,8 → 700,5 |
+| pedidos-do-cliente | 687 → 815 | 311,5 → 299,6 | 712,8 → 695,9 | 889,2 → 920,2 |
+| pedidos-por-status | 484 → 576 | 404,3 → 380,0 | 1203,3 → 903,3 | 1669,5 → 1227,9 |
+| busca-produtos | 507 → 597 | 299,2 → 286,3 | 596,7 → 572,5 | 854,8 → 783,9 |
+| vendas-por-dia | 267 → 310 | 593,2 → 540,0 | 1025,7 → 988,7 | 1250,7 → 1096,3 |
+| top-produtos | 56 → 66 | 150,6 → 199,0 | 482,7 → 455,1 | 674,8 → 550,6 |
+
+Requisições por segundo: 55,57 → 65,71 (64,76, 65,71 e 66,29 nas 3 execuções). Erros: 0,0% nas 3 execuções.
+Na rota da hipótese, `cliente-por-email`, as 3 execuções ficaram abaixo dos valores de antes (486,8, 786,7 e 899,8 ms) em mediana (195,3, 198,5 e 191,6 ms), p95 (498,7, 507,7 e 512,9 ms) e p99 (700,5, 633,4 e 797,7 ms).
+Nas outras 6 rotas, 13 das 18 comparações melhoraram e 5 pioraram: mediana (+3,1%), p95 (+0,6%) e p99 (+10,7%) de `cliente`, p99 de `pedidos-do-cliente` (+3,5%) e mediana de `top-produtos` (+32,1%, com 56 a 66 requisições por execução).
+
+CPU por requisição (cálculo: CPU média ÷ req/s; 100% = 1 CPU): banco 15,5 → 9,8 ms (−36,9%); API 7,9 → 7,4 ms (−6,3%).
+
+Leitura (inferência, não testada): a consulta por e-mail era das mais pesadas para o banco e, ao ser trocada por uma leitura de poucos blocos, o banco ganhou folga (CPU média de 85,9% para 64,1%) e a vazão subiu 18,2%. A API passou a ser o recurso mais exigido: 48,6% de 1 CPU é cerca de 97% da quota de 0,5 CPU. Isso muda o quadro em que o #11 foi medido (banco saturado, API com folga) e justifica repetir o #11 sobre este estado.
+
+Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
+
+| contêiner | cpu média | cpu máx | mem média (MiB) | mem máx (MiB) |
+|---|---|---|---|---|
+| banco | 85,9% → 64,1% | 99,7% → 99,8% | 464,7 → 470,7 | 500,5 → 501,5 |
+| api | 43,9% → 48,6% | 52,0% → 52,9% | 36,9 → 36,9 | 58,4 → 51,7 |
+
+A memória máxima do banco segue perto do limite de 512 MiB (506,8 MiB na segunda execução); a causa não foi investigada.
+
+Nota de método: a primeira tentativa do #12 (`resultados/20261117-183203-…`, `-183324-…` e `-183444-12-indice-email-clientes-1a-tentativa`) foi medida sobre o estado do #9 com uma view sem uso no banco e deu resultado parecido: `cliente-por-email` mediana 579,7 → 195,4 ms (−66,3%), p95 857,0 → 491,0 ms (−42,7%), p99 964,4 → 680,8 ms (−29,4%), req/s 46,38 → 60,33 (+30,1%), CPU por requisição do banco 20,6 → 14,5 ms. O ganho de vazão foi maior lá porque o banco ainda não tinha a contagem de `pedidos-por-status` em view.
 
 ## Hipóteses (escritas antes de aplicar)
 
