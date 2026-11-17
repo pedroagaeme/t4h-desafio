@@ -1,0 +1,6 @@
+DROP INDEX
+Timing is on.
+CREATE INDEX
+Time: 422.075 ms
+ANALYZE
+Time: 210.318 ms
