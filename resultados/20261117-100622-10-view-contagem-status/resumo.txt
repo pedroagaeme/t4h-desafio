@@ -1,0 +1,17 @@
+Medição: 10-view-contagem-status
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        2816
+Requisições/s:      46.80
+Tempo de resposta:  mediana 396.6 ms | p95 871.9 ms | p99 1434.7 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               717       195.1 ms      476.1 ms      561.4 ms      0.0%    
+cliente-por-email     403       572.1 ms      808.5 ms      964.4 ms      0.0%    
+pedidos-do-cliente    598       376.3 ms      747.6 ms      920.8 ms      0.0%    
+pedidos-por-status    394       616.2 ms      1572.4 ms     2186.7 ms     0.0%    
+busca-produtos        434       325.5 ms      610.9 ms      785.0 ms      0.0%    
+vendas-por-dia        223       597.9 ms      1075.5 ms     1526.2 ms     0.0%    
+top-produtos          47        197.4 ms      417.4 ms      585.2 ms      0.0%    
