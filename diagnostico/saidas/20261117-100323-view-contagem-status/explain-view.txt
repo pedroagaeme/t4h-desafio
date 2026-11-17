@@ -1,0 +1,12 @@
+                                                   QUERY PLAN                                                   
+----------------------------------------------------------------------------------------------------------------
+ Seq Scan on mv_pedidos_por_status  (cost=0.00..33.12 rows=1 width=8) (actual time=0.014..0.015 rows=1 loops=1)
+   Filter: (status = 'pago'::text)
+   Rows Removed by Filter: 3
+   Buffers: shared hit=1
+ Planning:
+   Buffers: shared hit=35
+ Planning Time: 0.205 ms
+ Execution Time: 0.226 ms
+(8 rows)
+
