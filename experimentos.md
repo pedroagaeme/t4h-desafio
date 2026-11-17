@@ -58,7 +58,7 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 | 7 | 2 | Índice em `pedidos(criado_em)` e filtro de `vendas-por-dia` reescrito como intervalo (`criado_em >= $1::date AND criado_em < $2::date + 1`, no lugar de `criado_em::date BETWEEN`); índice e reescrita só funcionam juntos, então são uma única mudança | [Winand: datas e índices](https://use-the-index-luke.com/sql/where-clause/obfuscation/dates) | Aplicada e medida | mediana `vendas-por-dia`: 1695,7 ms<br>p95 `vendas-por-dia`: 7386,2 ms<br>p99 `vendas-por-dia`: 9995,5 ms<br>14,83 req/s | mediana `vendas-por-dia`: 826,7 ms<br>p95 `vendas-por-dia`: 2583,2 ms<br>p99 `vendas-por-dia`: 3617,9 ms<br>17,34 req/s | `*-06-indice-pedidos-status` | `*-07-indice-pedidos-criado-em` | H7 confirmada: `vendas-por-dia` mediana −51,2%, p95 −65,0%, p99 −63,8%. Total: mediana −1,9%, p95 −19,7%, p99 −8,2%, req/s +16,9%. O p95 e o p99 de `pedidos-por-status` pioraram (3449,8 → 5999,1 e 6721,0 → 12042,7 ms), causa não investigada. Sem serviço novo; tamanho do índice não medido |
 | 8 | 2 | View materializada `mv_top_produtos` com as somas por produto (pedidos não cancelados) e índice `(receita_centavos DESC, id)`; `top-produtos` passa a ler a view no lugar de agregar `itens_pedido` | [Docs 41.3](https://www.postgresql.org/docs/16/rules-materializedviews.html), [REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-refreshmaterializedview.html), [Docs 11.4](https://www.postgresql.org/docs/16/indexes-ordering.html) | Aplicada e medida | mediana `top-produtos`: 7438,2 ms<br>p95 `top-produtos`: 14929,4 ms<br>p99 `top-produtos`: 16410,2 ms<br>17,34 req/s | mediana `top-produtos`: 70,7 ms<br>p95 `top-produtos`: 289,5 ms<br>p99 `top-produtos`: 364,6 ms<br>42,86 req/s | `*-07-indice-pedidos-criado-em` | `*-08-view-top-produtos` | H8 confirmada: `top-produtos` mediana −99,0%, p95 −98,1%, p99 −97,8%. Total: mediana −40,3%, p95 −62,4%, p99 −71,1%, req/s +147,2%. As 21 comparações por rota melhoraram. Memória do banco subiu (máx. 449,0 → 495,8 MiB de 512 MiB), causa não investigada. Sem serviço novo; a view ocupa 2664 kB (com o índice) e um `REFRESH` leva 1012,4 ms |
 | 9 | 1 e 3 | Junção única (`pedidos LEFT JOIN itens_pedido LEFT JOIN produtos`) em `pedidos-do-cliente`, no lugar de uma consulta de itens por pedido e uma de produto por item; o agrupamento por pedido passa a ser feito em JavaScript | [Winand: Nested Loops, ORMs and the N+1 Problem](https://use-the-index-luke.com/sql/join/nested-loops-join-n1-problem) | Aplicada e medida | mediana `pedidos-do-cliente`: 1200,7 ms<br>p95 `pedidos-do-cliente`: 2386,3 ms<br>p99 `pedidos-do-cliente`: 2871,2 ms<br>42,86 req/s | mediana `pedidos-do-cliente`: 393,9 ms<br>p95 `pedidos-do-cliente`: 767,1 ms<br>p99 `pedidos-do-cliente`: 938,6 ms<br>45,21 req/s | `*-08-view-top-produtos` | `*-09-juncao-pedidos-do-cliente` | H9 confirmada: `pedidos-do-cliente` mediana −67,2%, p95 −67,9%, p99 −67,3%. Total: p95 −47,1%, p99 −39,4%, req/s +5,5%, mas a mediana total subiu de 291,9 para 398,1 ms (+36,4%) e as 18 comparações das outras 6 rotas (mediana, p95 e p99) pioraram; causa não investigada (ver detalhe). A rota passou de 17 para 2 consultas por requisição (pelo código; contagem não medida depois da mudança). Sem serviço novo; CPU média do banco 91,4% → 92,1% |
-| 10 | 3 | View materializada `mv_pedidos_por_status` (status, total) e `pedidos-por-status` lendo a contagem dela no lugar de `count(*)` | [Wiki: Slow Counting](https://wiki.postgresql.org/wiki/Slow_Counting), [Docs 41.3](https://www.postgresql.org/docs/16/rules-materializedviews.html), [REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-refreshmaterializedview.html) | Pesquisada, teste futuro | mediana `pedidos-por-status`: 679,4 ms<br>p95 `pedidos-por-status`: 1596,0 ms<br>p99 `pedidos-por-status`: 2473,5 ms<br>45,21 req/s | mediana `pedidos-por-status`: preencher<br>p95 `pedidos-por-status`: preencher<br>p99 `pedidos-por-status`: preencher<br>preencher req/s | `*-09-juncao-pedidos-do-cliente` | `*-10-view-contagem-status` | preencher |
+| 10 | 3 | View materializada `mv_pedidos_por_status` (status, total) e `pedidos-por-status` lendo a contagem dela no lugar de `count(*)` | [Wiki: Slow Counting](https://wiki.postgresql.org/wiki/Slow_Counting), [Docs 41.3](https://www.postgresql.org/docs/16/rules-materializedviews.html), [REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-refreshmaterializedview.html) | Aplicada e medida | mediana `pedidos-por-status`: 679,4 ms<br>p95 `pedidos-por-status`: 1596,0 ms<br>p99 `pedidos-por-status`: 2473,5 ms<br>45,21 req/s | mediana `pedidos-por-status`: 618,6 ms<br>p95 `pedidos-por-status`: 1519,3 ms<br>p99 `pedidos-por-status`: 2106,8 ms<br>46,38 req/s | `*-09-juncao-pedidos-do-cliente` | `*-10-view-contagem-status` | H10 confirmada, com ganho pequeno: `pedidos-por-status` mediana −8,9%, p95 −4,8%, p99 −14,8%. Total: mediana −0,4%, p95 −1,8%, p99 −1,7%, req/s +2,6%. Das 18 comparações das outras 6 rotas, 11 melhoraram e 7 pioraram (entre +0,1% e +8,3%). O banco segue saturado (CPU média 95,6%) e a listagem com `OFFSET` continua na rota. Sem serviço novo; a view ocupa 16 kB e um `REFRESH` leva 70,583 ms. Memória do banco: máx. 501,3 MiB de 512 MiB (ver detalhe) |
 | 11 | 3 | `vendas-por-dia` agrupando por dia no banco (`GROUP BY`, `count(DISTINCT p.id)`, `sum`), sem a coluna `observacoes`, no lugar de trazer uma linha por item e agrupar em JavaScript | [Docs 9.21](https://www.postgresql.org/docs/16/functions-aggregate.html) | Pesquisada, teste futuro | mediana `vendas-por-dia`: preencher (= Depois do experimento anterior)<br>p95 `vendas-por-dia`: preencher<br>p99 `vendas-por-dia`: preencher | mediana `vendas-por-dia`: preencher<br>p95 `vendas-por-dia`: preencher<br>p99 `vendas-por-dia`: preencher<br>preencher req/s | `*-10-view-contagem-status` | `*-11-agregacao-vendas-por-dia` | preencher |
 | 12 | 3 | Índice em `clientes (lower(email))` para `cliente-por-email` | [Docs 11.7](https://www.postgresql.org/docs/16/indexes-expressional.html) | Pesquisada, teste futuro | mediana `cliente-por-email`: preencher (= Depois do experimento anterior)<br>p95 `cliente-por-email`: preencher<br>p99 `cliente-por-email`: preencher | mediana `cliente-por-email`: preencher<br>p95 `cliente-por-email`: preencher<br>p99 `cliente-por-email`: preencher<br>preencher req/s | `*-11-agregacao-vendas-por-dia` | `*-12-indice-email-clientes` | preencher |
 
@@ -335,6 +335,44 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 |---|---|---|---|---|
 | banco | 91,4% → 92,1% | 99,6% → 99,8% | 473,4 → 461,9 | 495,8 → 492,5 |
 | api | 38,9% → 38,3% | 50,4% → 50,2% | 40,6 → 41,4 | 49,4 → 59,3 |
+
+### Detalhe do #10 (mediana das 3 execuções, antes → depois)
+
+Rótulo `10-view-contagem-status`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Mudança, em um só commit: `banco/08-view-contagem-status.sql` (`CREATE MATERIALIZED VIEW mv_pedidos_por_status` com a contagem de pedidos por status) e, em `api/src/rotas.js`, a rota `GET /pedidos` passa a ler `total` da view no lugar de `count(*)` sobre `pedidos`; a listagem com `LIMIT` e `OFFSET` não mudou. O banco foi recriado (`docker compose down -v`) antes das medições.
+
+- `resultados/20261117-100339-10-view-contagem-status`
+- `resultados/20261117-100500-10-view-contagem-status`
+- `resultados/20261117-100622-10-view-contagem-status`
+
+| rota | req | mediana (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|
+| total | 2731 → 2794 | 398,1 → 396,6 | 910,6 → 893,8 | 1454,3 → 1429,0 |
+| cliente | 696 → 713 | 196,4 → 195,6 | 536,4 → 487,0 | 694,6 → 623,8 |
+| cliente-por-email | 395 → 403 | 535,5 → 579,7 | 822,3 → 857,0 | 993,8 → 964,4 |
+| pedidos-do-cliente | 576 → 592 | 393,9 → 363,5 | 767,1 → 771,1 | 938,6 → 929,9 |
+| pedidos-por-status | 383 → 392 | 679,4 → 618,6 | 1596,0 → 1519,3 | 2473,5 → 2106,8 |
+| busca-produtos | 421 → 429 | 317,0 → 317,4 | 614,2 → 618,4 | 720,4 → 764,5 |
+| vendas-por-dia | 215 → 222 | 676,6 → 614,5 | 1200,6 → 1075,5 | 1490,8 → 1276,7 |
+| top-produtos | 44 → 46 | 199,1 → 199,9 | 599,1 → 554,3 | 755,5 → 692,5 |
+
+Requisições por segundo: 45,21 → 46,38 (46,38, 45,91 e 46,80 nas 3 execuções). Erros: 0,0% nas 3 execuções.
+Na rota da hipótese, `pedidos-por-status`, as 3 execuções ficaram abaixo dos valores de antes (679,4, 1596,0 e 2473,5 ms) em mediana (618,6, 620,9 e 616,2 ms), p95 (1519,3, 1499,0 e 1572,4 ms) e p99 (2106,8, 1916,6 e 2186,7 ms). O p95 é a métrica com menos folga: a pior execução (1572,4 ms) fica 1,5% abaixo do valor de antes, e a variação entre as execuções de uma mesma rota chega a 10%.
+Nas outras 6 rotas, 11 das 18 comparações melhoraram e 7 pioraram, todas por no máximo +8,3% (`cliente-por-email`, mediana).
+
+Leitura (inferência, não testada): sozinha, a rota levava de 11,0 a 40,2 ms (`rotas-isoladas-pos-8`) e, sob carga, a mediana é de 618,6 ms, então a maior parte do tempo é espera, e retirar uma das duas consultas encurta a execução, mas a espera só cai se o trabalho total do banco cair bastante; o banco seguiu com CPU média de 95,6%. A listagem com `OFFSET`, que ficou, toca em média 9823 páginas por chamada no `pg_stat_statements` sob carga (Rodada 3). O tempo da rota sozinha depois da mudança não foi medido.
+
+CPU por requisição (cálculo: CPU média ÷ req/s; 100% = 1 CPU): banco 20,4 → 20,6 ms; API 8,5 → 8,0 ms. Com o banco saturado, esse número varia pouco e não é uma medida independente (a CPU média do banco foi de 90,8% a 96,2% entre as execuções).
+
+Custo da view (`diagnostico/saidas/20261117-*-view-contagem-status/`): `pg_total_relation_size('mv_pedidos_por_status')` = 16 kB (16384 bytes). O tempo de criação não foi medido; como proxy, `REFRESH MATERIALIZED VIEW mv_pedidos_por_status` levou 70,583 ms, porque o `REFRESH` executa de novo a mesma consulta ([REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-refreshmaterializedview.html)).
+
+Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
+
+| contêiner | cpu média | cpu máx | mem média (MiB) | mem máx (MiB) |
+|---|---|---|---|---|
+| banco | 92,1% → 95,6% | 99,8% → 99,7% | 461,9 → 473,1 | 492,5 → 501,3 |
+| api | 38,3% → 37,3% | 50,2% → 51,5% | 41,4 → 41,9 | 59,3 → 51,9 |
+
+A memória do banco chegou a 503,6 MiB de 512 MiB (98,4% do limite) na primeira execução; a causa não foi investigada.
 
 ## Hipóteses (escritas antes de aplicar)
 
