@@ -57,7 +57,7 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 | 6 | 2 | Índice em `pedidos(status, criado_em DESC, id DESC)` | [Docs 11.3](https://www.postgresql.org/docs/16/indexes-multicolumn.html), [Docs 11.4](https://www.postgresql.org/docs/16/indexes-ordering.html), [Winand: Pipelined/Indexed ORDER BY](https://use-the-index-luke.com/sql/sorting-grouping/indexed-order-by) | Aplicada e medida | mediana total: 798,4 ms<br>p95 total: 7593,9 ms<br>p99 total: 12456,6 ms<br>8,82 req/s | mediana total: 498,7 ms<br>p95 total: 5704,1 ms<br>p99 total: 9063,8 ms<br>14,83 req/s | `*-03-pool-api` | `*-06-indice-pedidos-status` | H6 confirmada: mediana total −37,5%, p95 −24,9%, p99 −27,2%, req/s +68,1%. As 21 comparações por rota (7 rotas × mediana, p95 e p99) melhoraram; `pedidos-por-status`: mediana 3090,7 → 680,0 ms. Sem serviço novo; o banco segue em ~100% de CPU. Tamanho do índice não medido |
 | 7 | 2 | Índice em `pedidos(criado_em)` e filtro de `vendas-por-dia` reescrito como intervalo (`criado_em >= $1::date AND criado_em < $2::date + 1`, no lugar de `criado_em::date BETWEEN`); índice e reescrita só funcionam juntos, então são uma única mudança | [Winand: datas e índices](https://use-the-index-luke.com/sql/where-clause/obfuscation/dates) | Aplicada e medida | mediana `vendas-por-dia`: 1695,7 ms<br>p95 `vendas-por-dia`: 7386,2 ms<br>p99 `vendas-por-dia`: 9995,5 ms<br>14,83 req/s | mediana `vendas-por-dia`: 826,7 ms<br>p95 `vendas-por-dia`: 2583,2 ms<br>p99 `vendas-por-dia`: 3617,9 ms<br>17,34 req/s | `*-06-indice-pedidos-status` | `*-07-indice-pedidos-criado-em` | H7 confirmada: `vendas-por-dia` mediana −51,2%, p95 −65,0%, p99 −63,8%. Total: mediana −1,9%, p95 −19,7%, p99 −8,2%, req/s +16,9%. O p95 e o p99 de `pedidos-por-status` pioraram (3449,8 → 5999,1 e 6721,0 → 12042,7 ms), causa não investigada. Sem serviço novo; tamanho do índice não medido |
 | 8 | 2 | View materializada `mv_top_produtos` com as somas por produto (pedidos não cancelados) e índice `(receita_centavos DESC, id)`; `top-produtos` passa a ler a view no lugar de agregar `itens_pedido` | [Docs 41.3](https://www.postgresql.org/docs/16/rules-materializedviews.html), [REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-refreshmaterializedview.html), [Docs 11.4](https://www.postgresql.org/docs/16/indexes-ordering.html) | Aplicada e medida | mediana `top-produtos`: 7438,2 ms<br>p95 `top-produtos`: 14929,4 ms<br>p99 `top-produtos`: 16410,2 ms<br>17,34 req/s | mediana `top-produtos`: 70,7 ms<br>p95 `top-produtos`: 289,5 ms<br>p99 `top-produtos`: 364,6 ms<br>42,86 req/s | `*-07-indice-pedidos-criado-em` | `*-08-view-top-produtos` | H8 confirmada: `top-produtos` mediana −99,0%, p95 −98,1%, p99 −97,8%. Total: mediana −40,3%, p95 −62,4%, p99 −71,1%, req/s +147,2%. As 21 comparações por rota melhoraram. Memória do banco subiu (máx. 449,0 → 495,8 MiB de 512 MiB), causa não investigada. Sem serviço novo; a view ocupa 2664 kB (com o índice) e um `REFRESH` leva 1012,4 ms |
-| 9 | 1 e 3 | Junção única (`pedidos LEFT JOIN itens_pedido LEFT JOIN produtos`) em `pedidos-do-cliente`, no lugar de uma consulta de itens por pedido e uma de produto por item; o agrupamento por pedido passa a ser feito em JavaScript | [Winand: Nested Loops, ORMs and the N+1 Problem](https://use-the-index-luke.com/sql/join/nested-loops-join-n1-problem) | Pesquisada, teste futuro | mediana `pedidos-do-cliente`: 1200,7 ms<br>p95 `pedidos-do-cliente`: 2386,3 ms<br>p99 `pedidos-do-cliente`: 2871,2 ms<br>42,86 req/s | preencher | `*-08-view-top-produtos` | preencher | preencher |
+| 9 | 1 e 3 | Junção única (`pedidos LEFT JOIN itens_pedido LEFT JOIN produtos`) em `pedidos-do-cliente`, no lugar de uma consulta de itens por pedido e uma de produto por item; o agrupamento por pedido passa a ser feito em JavaScript | [Winand: Nested Loops, ORMs and the N+1 Problem](https://use-the-index-luke.com/sql/join/nested-loops-join-n1-problem) | Aplicada e medida | mediana `pedidos-do-cliente`: 1200,7 ms<br>p95 `pedidos-do-cliente`: 2386,3 ms<br>p99 `pedidos-do-cliente`: 2871,2 ms<br>42,86 req/s | mediana `pedidos-do-cliente`: 393,9 ms<br>p95 `pedidos-do-cliente`: 767,1 ms<br>p99 `pedidos-do-cliente`: 938,6 ms<br>45,21 req/s | `*-08-view-top-produtos` | `*-09-juncao-pedidos-do-cliente` | H9 confirmada: `pedidos-do-cliente` mediana −67,2%, p95 −67,9%, p99 −67,3%. Total: p95 −47,1%, p99 −39,4%, req/s +5,5%, mas a mediana total subiu de 291,9 para 398,1 ms (+36,4%) e as 18 comparações das outras 6 rotas (mediana, p95 e p99) pioraram; causa não investigada (ver detalhe). A rota passou de 17 para 2 consultas por requisição (pelo código; contagem não medida depois da mudança). Sem serviço novo; CPU média do banco 91,4% → 92,1% |
 
 Status: `Aplicada e medida`, `Aplicada, sem ganho` ou `Pesquisada, teste futuro`. Ao medir, troque o status e preencha Depois (medianas das 3 execuções), a pasta e a conclusão.
 
@@ -298,6 +298,40 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 |---|---|---|---|---|
 | banco | 98,5% → 91,4% | 99,8% → 99,6% | 413,2 → 473,4 | 449,0 → 495,8 |
 | api | 16,3% → 38,9% | 9,8% → 50,4% | 34,2 → 40,6 | 44,0 → 49,4 |
+
+### Detalhe do #9 (mediana das 3 execuções, antes → depois)
+
+Rótulo `09-juncao-pedidos-do-cliente`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42). Contrato mantido (42 respostas iguais) nas 3 execuções. Mudança, em um só commit: em `api/src/rotas.js`, a rota `GET /clientes/:id/pedidos` passa a usar uma consulta `pedidos LEFT JOIN itens_pedido LEFT JOIN produtos`, ordenada por `p.criado_em DESC, p.id DESC, i.id`, e o agrupamento por pedido é feito em JavaScript; a consulta do cliente (para o 404) fica como estava. Limite da verificação: para essa rota o contrato cobre 4 clientes (7, 42, 31337 e 99999, todos com 5 pedidos e nenhum pedido sem itens) e 1 caso de 404 (100001); não cobre `id` inválido nem pedido sem itens.
+
+- `resultados/20261117-092959-09-juncao-pedidos-do-cliente`
+- `resultados/20261117-093120-09-juncao-pedidos-do-cliente`
+- `resultados/20261117-093241-09-juncao-pedidos-do-cliente`
+
+| rota | req | mediana (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|
+| total | 2604 → 2731 | 291,9 → 398,1 | 1721,2 → 910,6 | 2401,0 → 1454,3 |
+| cliente | 681 → 696 | 82,1 → 196,4 | 299,6 → 536,4 | 442,0 → 694,6 |
+| cliente-por-email | 377 → 395 | 380,4 → 535,5 | 598,0 → 822,3 | 697,9 → 993,8 |
+| pedidos-do-cliente | 532 → 576 | 1200,7 → 393,9 | 2386,3 → 767,1 | 2871,2 → 938,6 |
+| pedidos-por-status | 362 → 383 | 378,5 → 679,4 | 1014,2 → 1596,0 | 1738,7 → 2473,5 |
+| busca-produtos | 396 → 421 | 194,0 → 317,0 | 402,0 → 614,2 | 579,7 → 720,4 |
+| vendas-por-dia | 207 → 215 | 390,6 → 676,6 | 709,8 → 1200,6 | 1010,0 → 1490,8 |
+| top-produtos | 44 → 44 | 70,7 → 199,1 | 289,5 → 599,1 | 364,6 → 755,5 |
+
+Requisições por segundo: 42,86 → 45,21 (45,35, 44,08 e 45,21 nas 3 execuções). Erros: 0,0% nas 3 execuções.
+A rota da hipótese, `pedidos-do-cliente`, melhorou nas 3 execuções em mediana (391,7, 393,9 e 395,0 ms), p95 (767,1, 849,6 e 729,1 ms) e p99 (938,6, 1012,8 e 916,1 ms), todas abaixo dos valores de antes (1200,7, 2386,3 e 2871,2 ms).
+Nas outras 6 rotas, as 18 comparações (6 rotas × mediana, p95 e p99) pioraram, de +24,3% (p99 de `busca-produtos`) a +181,6% (mediana de `top-produtos`).
+
+Leitura (inferência, não testada): a carga não tem pausa entre requisições e o banco já estava a cerca de 92% de CPU, com os dois contêineres em saturação. Com `pedidos-do-cliente` respondendo mais rápido, os usuários virtuais enviam mais requisições por segundo das outras rotas ao mesmo tempo; a vazão total subiu só 5,5%, então o trabalho a dividir cresceu mais que a capacidade e a espera dessas rotas aumentou. Um teste que a confirmaria ou refutaria: medir a mesma mudança com menos usuários virtuais, ou comparar o `pgss` antes e depois.
+
+CPU por requisição (cálculo: CPU média ÷ req/s; 100% = 1 CPU): banco 21,3 → 20,4 ms (−4,5%); API 9,1 → 8,5 ms (−6,7%).
+
+Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
+
+| contêiner | cpu média | cpu máx | mem média (MiB) | mem máx (MiB) |
+|---|---|---|---|---|
+| banco | 91,4% → 92,1% | 99,6% → 99,8% | 473,4 → 461,9 | 495,8 → 492,5 |
+| api | 38,9% → 38,3% | 50,4% → 50,2% | 40,6 → 41,4 | 49,4 → 59,3 |
 
 ## Hipóteses (escritas antes de aplicar)
 
