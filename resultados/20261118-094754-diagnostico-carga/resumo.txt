@@ -1,0 +1,17 @@
+Medição: diagnostico-carga
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        3972
+Requisições/s:      65.60
+Tempo de resposta:  mediana 284.4 ms | p95 693.2 ms | p99 912.0 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               1041      198.9 ms      494.5 ms      699.1 ms      0.0%    
+cliente-por-email     568       198.5 ms      486.5 ms      606.4 ms      0.0%    
+pedidos-do-cliente    817       296.1 ms      683.8 ms      793.7 ms      0.0%    
+pedidos-por-status    575       375.9 ms      818.2 ms      1083.6 ms     0.0%    
+busca-produtos        596       290.1 ms      594.3 ms      781.4 ms      0.0%    
+vendas-por-dia        309       517.9 ms      905.7 ms      1071.5 ms     0.0%    
+top-produtos          66        187.8 ms      492.0 ms      747.7 ms      0.0%    
