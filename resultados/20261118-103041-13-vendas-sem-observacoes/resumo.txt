@@ -1,0 +1,17 @@
+Medição: 13-vendas-sem-observacoes
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        5286
+Requisições/s:      87.66
+Tempo de resposta:  mediana 195.3 ms | p95 521.1 ms | p99 974.7 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               1366      112.5 ms      326.0 ms      403.8 ms      0.0%    
+cliente-por-email     781       113.2 ms      315.1 ms      406.3 ms      0.0%    
+pedidos-do-cliente    1102      220.3 ms      497.8 ms      605.9 ms      0.0%    
+pedidos-por-status    757       285.3 ms      1129.1 ms     1616.8 ms     0.0%    
+busca-produtos        781       216.5 ms      425.6 ms      562.1 ms      0.0%    
+vendas-por-dia        407       386.8 ms      759.0 ms      970.3 ms      0.0%    
+top-produtos          92        111.3 ms      309.9 ms      377.4 ms      0.0%    
