@@ -1,0 +1,18 @@
+data: 2026-11-18T09:46:52-03:00
+commit: b424474 (exp-12-indice-email-clientes-refeito)
+?? diagnostico/coleta/
+?? diagnostico/saidas/20261118-094505-coleta/
+?? diagnostico/saidas/20261118-094652-coleta/
+NAME                          IMAGE                     COMMAND                  SERVICE   CREATED              STATUS                        PORTS
+desafio-performance-api-1     desafio-performance-api   "docker-entrypoint.s…"   api       About a minute ago   Up 28 seconds                 127.0.0.1:3000->3000/tcp
+desafio-performance-banco-1   postgres:16.4             "docker-entrypoint.s…"   banco     About a minute ago   Up About a minute (healthy)   127.0.0.1:5432->5432/tcp
+CONTAINER ID   NAME                          CPU %     MEM USAGE / LIMIT   MEM %     NET I/O           BLOCK I/O        PIDS
+f6f4b23bfb65   desafio-performance-api-1     0.04%     15.23MiB / 256MiB   5.95%     2.69kB / 1.95kB   58.2MB / 0B      11
+33958c799b35   desafio-performance-banco-1   5.85%     198MiB / 512MiB     38.67%    3.02kB / 1.29kB   485MB / 2.44GB   6
+14:          cpus: 0.5
+15:          memory: "268435456"
+34:          cpus: 1
+35:          memory: "536870912"
+56:    image: postgres:16.4
+v20.18.0
+api: 200

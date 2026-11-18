@@ -1,0 +1,93 @@
+Aquecendo por 15s (não entra na medição)...
+ Container desafio-performance-carga-run-b4268e2ab9b7 Creating 
+ Container desafio-performance-carga-run-b4268e2ab9b7 Created 
+Medindo: 20 usuários virtuais por 60s...
+ Container desafio-performance-carga-run-a1f787bdaf5d Creating 
+ Container desafio-performance-carga-run-a1f787bdaf5d Created 
+Medição: diagnostico-carga
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        3972
+Requisições/s:      65.60
+Tempo de resposta:  mediana 284.4 ms | p95 693.2 ms | p99 912.0 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               1041      198.9 ms      494.5 ms      699.1 ms      0.0%    
+cliente-por-email     568       198.5 ms      486.5 ms      606.4 ms      0.0%    
+pedidos-do-cliente    817       296.1 ms      683.8 ms      793.7 ms      0.0%    
+pedidos-por-status    575       375.9 ms      818.2 ms      1083.6 ms     0.0%    
+busca-produtos        596       290.1 ms      594.3 ms      781.4 ms      0.0%    
+vendas-por-dia        309       517.9 ms      905.7 ms      1071.5 ms     0.0%    
+top-produtos          66        187.8 ms      492.0 ms      747.7 ms      0.0%    
+Conferindo o contrato depois da carga...
+
+Uso de recursos durante a carga:
+container                            amostras  cpu_media    cpu_max    mem_media      mem_max
+desafio-performance-banco-1                30      64.4%      89.7%    218.4 MiB    244.3 MiB
+desafio-performance-api-1                  30      48.4%      51.0%     35.8 MiB     47.2 MiB
+
+cpu_percentual: 100% = 1 CPU inteira.
+
+Contrato: Contrato mantido: as 42 respostas são iguais às gravadas.
+
+Resultado salvo em resultados/20261118-094754-diagnostico-carga/
+--- conexões (hora, ativas, total)
+12:47:54|0|1
+12:47:57|0|5
+12:47:59|0|5
+12:48:02|0|5
+12:48:04|0|5
+12:48:06|0|5
+12:48:09|2|5
+12:48:11|0|5
+12:48:13|0|10
+12:48:16|14|15
+12:48:19|1|10
+12:48:21|0|10
+12:48:23|1|10
+12:48:25|0|10
+12:48:27|1|10
+12:48:30|0|10
+12:48:32|0|10
+12:48:35|0|10
+12:48:37|4|10
+12:48:39|0|10
+12:48:42|0|10
+12:48:44|3|12
+12:48:46|0|10
+12:48:48|0|10
+12:48:51|0|10
+12:48:53|0|10
+12:48:55|5|13
+12:48:57|0|10
+12:49:00|0|10
+12:49:02|0|10
+--- api cpu.stat (delta, us)
+usage_usec 37566787
+user_usec 28316110
+system_usec 9250677
+nr_periods 782
+nr_throttled 715
+throttled_usec 65342620
+nr_bursts 0
+burst_usec 0
+mem atual=30056448 limite=268435456
+--- banco cpu.stat (delta, us)
+usage_usec 50120751
+user_usec 27106056
+system_usec 23014694
+nr_periods 785
+nr_throttled 330
+throttled_usec 123516024
+nr_bursts 0
+burst_usec 0
+mem atual=242667520 limite=536870912
+--- banco memory.events (delta)
+low 0
+high 0
+max 0
+oom 0
+oom_kill 0
+oom_group_kill 0

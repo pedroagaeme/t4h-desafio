@@ -1,0 +1,16 @@
+ocioso us/s: api=2762 banco=14503
+n | rota | ms/req | cpu_api_ms/req | cpu_banco_ms/req | bytes
+100 | /clientes/500 | 9.1 | 2.20 | 0.71 | 125
+100 | /clientes?email=cliente3%40exemplo.com | 9.4 | 2.33 | 0.45 | 121
+100 | /clientes/42/pedidos | 10.0 | 2.71 | 0.83 | 1625
+60 | /pedidos?status=pago&pagina=1 | 9.7 | 2.78 | 0.75 | 1810
+60 | /pedidos?status=pago&pagina=500 | 13.1 | 2.84 | 4.92 | 1814
+30 | /pedidos?status=pago&pagina=15000 | 506.2 | 5.85 | 500.87 | 1815
+60 | /pedidos?status=entregue&pagina=3 | 10.0 | 2.84 | 1.18 | 1891
+60 | /pedidos?status=cancelado&pagina=250 | 12.6 | 3.15 | 4.90 | 1913
+60 | /produtos/busca?q=cadeira | 18.6 | 2.47 | 10.67 | 1891
+60 | /produtos/busca?q=ERGO | 18.6 | 2.30 | 10.30 | 2009
+60 | /produtos/busca?q=sem%20fio | 19.0 | 2.54 | 11.19 | 1951
+30 | /relatorios/vendas-por-dia?inicio=2024-01-01&fim=2024-01-07 | 161.9 | 81.63 | 39.08 | 540
+10 | /relatorios/vendas-por-dia?inicio=2024-01-01&fim=2024-03-01 | 8.8 | 3.41 | 2.44 | 47
+100 | /relatorios/top-produtos | 9.1 | 2.01 | 0.42 | 1257

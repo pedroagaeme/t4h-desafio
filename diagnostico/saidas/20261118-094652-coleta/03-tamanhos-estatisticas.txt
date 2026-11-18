@@ -1,0 +1,80 @@
+             relname             | relkind |  total  |  relacao   | linhas  | relpages | relallvisible 
+---------------------------------+---------+---------+------------+---------+----------+---------------
+ pedidos                         | r       | 211 MB  | 163 MB     |  500000 |    20834 |             0
+ itens_pedido                    | r       | 128 MB  | 75 MB      | 1500000 |     9555 |             0
+ itens_pedido_pkey               | i       | 32 MB   | 32 MB      | 1500000 |     4115 |             0
+ idx_pedidos_status_criado_em_id | i       | 21 MB   | 21 MB      |  500000 |     2700 |             0
+ idx_itens_pedido_pedido_id      | i       | 21 MB   | 21 MB      | 1500000 |     2686 |             0
+ clientes                        | r       | 16 MB   | 9248 kB    |  100000 |     1156 |             0
+ idx_pedidos_criado_em           | i       | 11 MB   | 11 MB      |  500000 |     1374 |             0
+ pedidos_pkey                    | i       | 11 MB   | 11 MB      |  500000 |     1374 |             0
+ idx_pedidos_cliente_id          | i       | 5720 kB | 5720 kB    |  500000 |      715 |             0
+ idx_clientes_lower_email        | i       | 4792 kB | 4792 kB    |  100000 |      599 |             0
+ mv_top_produtos                 | m       | 2664 kB | 2048 kB    |   19206 |      256 |             0
+ clientes_pkey                   | i       | 2208 kB | 2208 kB    |  100000 |      276 |             0
+ produtos                        | r       | 2008 kB | 1520 kB    |   20000 |      190 |             0
+ idx_mv_top_produtos_receita     | i       | 608 kB  | 608 kB     |   19206 |       76 |             0
+ produtos_pkey                   | i       | 456 kB  | 456 kB     |   20000 |       57 |             0
+ mv_pedidos_por_status           | m       | 16 kB   | 8192 bytes |       4 |        1 |             0
+(16 rows)
+
+ tamanho_do_banco 
+------------------
+ 367 MB
+(1 row)
+
+        tablename         |         attname         | avg_width | n_distinct  |  correlation   
+--------------------------+-------------------------+-----------+-------------+----------------
+ clientes                 | cidade                  |        10 |          12 |     0.09177154
+ clientes                 | criado_em               |         8 |          -1 |    0.016804151
+ clientes                 | email                   |        24 |          -1 |     0.81600153
+ clientes                 | id                      |         4 |          -1 |              1
+ clientes                 | nome                    |        14 |         576 |   -0.006020477
+ idx_clientes_lower_email | lower                   |        27 |          -1 |     0.81600153
+ itens_pedido             | id                      |         4 |          -1 |              1
+ itens_pedido             | pedido_id               |         4 | -0.26707068 |              1
+ itens_pedido             | preco_unitario_centavos |         4 |       16874 |  -0.0033536986
+ itens_pedido             | produto_id              |         4 |       16874 |   0.0063137477
+ itens_pedido             | quantidade              |         4 |           3 |     0.33559614
+ mv_pedidos_por_status    | status                  |         8 |          -1 |              1
+ mv_pedidos_por_status    | total                   |         8 |          -1 |           -0.2
+ mv_top_produtos          | categoria               |         9 |           6 |     0.20985179
+ mv_top_produtos          | id                      |         4 |          -1 |  -0.0072205826
+ mv_top_produtos          | nome                    |        28 |          -1 |   -0.006351451
+ mv_top_produtos          | receita_centavos        |         8 |  -0.9931792 |    0.013913065
+ mv_top_produtos          | unidades                |         8 |          41 |     0.09066363
+ pedidos                  | cliente_id              |         4 |    -0.19913 |   -0.006972702
+ pedidos                  | criado_em               |         8 |          -1 |   -0.010340262
+ pedidos                  | id                      |         4 |          -1 |              1
+ pedidos                  | observacoes             |       277 |           6 |     0.16427232
+ pedidos                  | status                  |         6 |           4 |     0.43755525
+ produtos                 | categoria               |         9 |           6 |     0.20477574
+ produtos                 | id                      |         4 |          -1 |      0.9999643
+ produtos                 | nome                    |        27 |          -1 |  -0.0021032295
+ produtos                 | preco_centavos          |         4 |          -1 | -0.00064054236
+(27 rows)
+
+        relname        | n_live_tup | n_dead_tup | last_vacuum | last_autovacuum |         last_analyze          | last_autoanalyze 
+-----------------------+------------+------------+-------------+-----------------+-------------------------------+------------------
+ clientes              |     100000 |          0 |             |                 | 2026-11-18 12:46:22.072742+00 | 
+ itens_pedido          |    1500000 |          0 |             |                 | 2026-11-18 12:46:17.609932+00 | 
+ mv_pedidos_por_status |          8 |          0 |             |                 | 2026-11-18 12:46:21.451393+00 | 
+ mv_top_produtos       |      19206 |          0 |             |                 | 2026-11-18 12:46:21.290259+00 | 
+ pedidos               |     500000 |          0 |             |                 | 2026-11-18 12:46:17.420957+00 | 
+ produtos              |      20000 |          0 |             |                 | 2026-11-18 12:46:17.673974+00 | 
+(6 rows)
+
+            indexname            |                                                   indexdef                                                   
+---------------------------------+--------------------------------------------------------------------------------------------------------------
+ clientes_pkey                   | CREATE UNIQUE INDEX clientes_pkey ON public.clientes USING btree (id)
+ idx_clientes_lower_email        | CREATE INDEX idx_clientes_lower_email ON public.clientes USING btree (lower(email))
+ idx_itens_pedido_pedido_id      | CREATE INDEX idx_itens_pedido_pedido_id ON public.itens_pedido USING btree (pedido_id)
+ itens_pedido_pkey               | CREATE UNIQUE INDEX itens_pedido_pkey ON public.itens_pedido USING btree (id)
+ idx_mv_top_produtos_receita     | CREATE INDEX idx_mv_top_produtos_receita ON public.mv_top_produtos USING btree (receita_centavos DESC, id)
+ idx_pedidos_cliente_id          | CREATE INDEX idx_pedidos_cliente_id ON public.pedidos USING btree (cliente_id)
+ idx_pedidos_criado_em           | CREATE INDEX idx_pedidos_criado_em ON public.pedidos USING btree (criado_em)
+ idx_pedidos_status_criado_em_id | CREATE INDEX idx_pedidos_status_criado_em_id ON public.pedidos USING btree (status, criado_em DESC, id DESC)
+ pedidos_pkey                    | CREATE UNIQUE INDEX pedidos_pkey ON public.pedidos USING btree (id)
+ produtos_pkey                   | CREATE UNIQUE INDEX produtos_pkey ON public.produtos USING btree (id)
+(10 rows)
+

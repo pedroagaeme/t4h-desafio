@@ -1,0 +1,7 @@
+ativando (reinicia banco e API)
+ALTER SYSTEM
+ Container desafio-performance-banco-1 Restarting 
+ Container desafio-performance-banco-1 Started 
+ Container desafio-performance-api-1 Restarting 
+ Container desafio-performance-api-1 Started 
+CREATE EXTENSION

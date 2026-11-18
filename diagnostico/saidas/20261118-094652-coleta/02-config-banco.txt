@@ -1,0 +1,23 @@
+              name               | setting | unit |       source       
+---------------------------------+---------+------+--------------------
+ autovacuum                      | on      |      | default
+ cpu_tuple_cost                  | 0.01    |      | default
+ default_statistics_target       | 100     |      | default
+ effective_cache_size            | 524288  | 8kB  | default
+ jit                             | on      |      | default
+ max_connections                 | 100     |      | configuration file
+ max_parallel_workers            | 8       |      | default
+ max_parallel_workers_per_gather | 2       |      | default
+ max_worker_processes            | 8       |      | default
+ min_parallel_table_scan_size    | 1024    | 8kB  | default
+ parallel_setup_cost             | 1000    |      | default
+ parallel_tuple_cost             | 0.1     |      | default
+ random_page_cost                | 4       |      | default
+ seq_page_cost                   | 1       |      | default
+ shared_buffers                  | 16384   | 8kB  | configuration file
+ shared_preload_libraries        |         |      | default
+ synchronous_commit              | on      |      | default
+ track_io_timing                 | off     |      | default
+ work_mem                        | 4096    | kB   | default
+(19 rows)
+

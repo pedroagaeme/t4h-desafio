@@ -1,0 +1,152 @@
+=== extensões e collation
+        name        | default_version 
+--------------------+-----------------
+ pg_stat_statements | 1.10
+ pg_trgm            | 1.6
+(2 rows)
+
+ datname | datcollate |  datctype  
+---------+------------+------------
+ loja    | en_US.utf8 | en_US.utf8
+(1 row)
+
+=== JIT nas consultas medidas
+ calls | jit_functions | gen_ms | inl_ms | opt_ms | emi_ms | consulta 
+-------+---------------+--------+--------+--------+--------+----------
+(0 rows)
+
+=== listagem status=pago pagina 1
+                                                                        QUERY PLAN                                                                         
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=0.42..6.30 rows=20 width=299) (actual time=0.054..0.186 rows=20 loops=1)
+   Buffers: shared hit=23
+   ->  Index Scan using idx_pedidos_status_criado_em_id on pedidos  (cost=0.42..87325.17 rows=297400 width=299) (actual time=0.054..0.184 rows=20 loops=1)
+         Index Cond: (status = 'pago'::text)
+         Buffers: shared hit=23
+ Planning:
+   Buffers: shared hit=144 read=7
+ Planning Time: 0.498 ms
+ Execution Time: 0.215 ms
+(9 rows)
+
+=== listagem status=pago pagina 500
+                                                                          QUERY PLAN                                                                          
+--------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=2930.82..2936.69 rows=20 width=299) (actual time=10.088..10.100 rows=20 loops=1)
+   Buffers: shared hit=10003 read=49
+   ->  Index Scan using idx_pedidos_status_criado_em_id on pedidos  (cost=0.42..87325.17 rows=297400 width=299) (actual time=0.050..9.823 rows=10000 loops=1)
+         Index Cond: (status = 'pago'::text)
+         Buffers: shared hit=10003 read=49
+ Planning:
+   Buffers: shared hit=151
+ Planning Time: 0.425 ms
+ Execution Time: 10.129 ms
+(9 rows)
+
+=== listagem status=pago pagina 3000
+                                                                          QUERY PLAN                                                                           
+---------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=17612.18..17618.06 rows=20 width=299) (actual time=40.621..40.628 rows=20 loops=1)
+   Buffers: shared hit=58726 read=1572
+   ->  Index Scan using idx_pedidos_status_criado_em_id on pedidos  (cost=0.42..87325.17 rows=297400 width=299) (actual time=0.049..39.017 rows=60000 loops=1)
+         Index Cond: (status = 'pago'::text)
+         Buffers: shared hit=58726 read=1572
+ Planning:
+   Buffers: shared hit=151
+ Planning Time: 0.434 ms
+ Execution Time: 40.660 ms
+(9 rows)
+
+=== listagem status=pago pagina 6000
+                                                                           QUERY PLAN                                                                           
+----------------------------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=35229.82..35235.69 rows=20 width=299) (actual time=67.368..67.384 rows=20 loops=1)
+   Buffers: shared hit=117196 read=3398
+   ->  Index Scan using idx_pedidos_status_criado_em_id on pedidos  (cost=0.42..87325.17 rows=297400 width=299) (actual time=0.049..64.104 rows=120000 loops=1)
+         Index Cond: (status = 'pago'::text)
+         Buffers: shared hit=117196 read=3398
+ Planning:
+   Buffers: shared hit=151
+ Planning Time: 0.436 ms
+ Execution Time: 67.421 ms
+(9 rows)
+
+=== listagem status=pago pagina 15000
+                                                                 QUERY PLAN                                                                  
+---------------------------------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=81203.94..81204.06 rows=1 width=299) (actual time=574.747..589.394 rows=20 loops=1)
+   Buffers: shared hit=11409 read=9551, temp read=11475 written=11508
+   ->  Gather Merge  (cost=52287.96..81203.94 rows=247834 width=299) (actual time=356.848..580.881 rows=300000 loops=1)
+         Workers Planned: 2
+         Workers Launched: 2
+         Buffers: shared hit=11409 read=9551, temp read=11475 written=11508
+         ->  Sort  (cost=51287.93..51597.73 rows=123917 width=299) (actual time=330.551..351.635 rows=100000 loops=3)
+               Sort Key: criado_em DESC, id DESC
+               Sort Method: external merge  Disk: 33552kB
+               Buffers: shared hit=11409 read=9551, temp read=11475 written=11508
+               Worker 0:  Sort Method: external merge  Disk: 29936kB
+               Worker 1:  Sort Method: external merge  Disk: 28312kB
+               ->  Parallel Seq Scan on pedidos  (cost=0.00..23438.17 rows=123917 width=299) (actual time=0.020..63.819 rows=100000 loops=3)
+                     Filter: (status = 'pago'::text)
+                     Rows Removed by Filter: 66667
+                     Buffers: shared hit=11283 read=9551
+ Planning:
+   Buffers: shared hit=151
+ Planning Time: 0.418 ms
+ Execution Time: 600.401 ms
+(20 rows)
+
+=== busca
+                                                      QUERY PLAN                                                       
+-----------------------------------------------------------------------------------------------------------------------
+ Limit  (cost=466.88..466.93 rows=20 width=44) (actual time=10.286..10.289 rows=20 loops=1)
+   Buffers: shared hit=196
+   ->  Sort  (cost=466.88..469.40 rows=1010 width=44) (actual time=10.285..10.286 rows=20 loops=1)
+         Sort Key: nome, id
+         Sort Method: top-N heapsort  Memory: 27kB
+         Buffers: shared hit=196
+         ->  Seq Scan on produtos  (cost=0.00..440.00 rows=1010 width=44) (actual time=0.025..9.922 rows=1000 loops=1)
+               Filter: (nome ~~* '%cadeira%'::text)
+               Rows Removed by Filter: 19000
+               Buffers: shared hit=190
+ Planning:
+   Buffers: shared hit=81 read=2
+ Planning Time: 0.553 ms
+ Execution Time: 10.319 ms
+(14 rows)
+
+=== vendas-por-dia (7 dias)
+                                                                        QUERY PLAN                                                                         
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+ Gather  (cost=1113.84..25941.13 rows=13995 width=297) (actual time=1.599..14.198 rows=12945 loops=1)
+   Workers Planned: 2
+   Workers Launched: 2
+   Buffers: shared hit=18322
+   ->  Nested Loop  (cost=113.84..23541.63 rows=5831 width=297) (actual time=0.442..6.896 rows=4315 loops=3)
+         Buffers: shared hit=18322
+         ->  Parallel Bitmap Heap Scan on pedidos p  (cost=113.41..12083.73 rows=1944 width=289) (actual time=0.402..2.427 rows=1438 loops=3)
+               Recheck Cond: ((criado_em >= '2024-01-01'::date) AND (criado_em < '2024-01-08'::date))
+               Filter: (status <> 'cancelado'::text)
+               Rows Removed by Filter: 160
+               Heap Blocks: exact=419
+               Buffers: shared hit=1014
+               ->  Bitmap Index Scan on idx_pedidos_criado_em  (cost=0.00..112.24 rows=5182 width=0) (actual time=1.021..1.021 rows=4792 loops=1)
+                     Index Cond: ((criado_em >= '2024-01-01'::date) AND (criado_em < '2024-01-08'::date))
+                     Buffers: shared hit=19
+         ->  Index Scan using idx_itens_pedido_pedido_id on itens_pedido i  (cost=0.43..5.85 rows=4 width=12) (actual time=0.002..0.003 rows=3 loops=4313)
+               Index Cond: (pedido_id = p.id)
+               Buffers: shared hit=17308
+ Planning:
+   Buffers: shared hit=338 read=2
+ Planning Time: 1.241 ms
+ Execution Time: 14.618 ms
+(22 rows)
+
+=== parâmetros da carga
+teste-carga.js
+carga/teste-carga.js:16:const STATUS = ['pago', 'entregue', 'cancelado', 'pendente'];
+carga/teste-carga.js:48:  { nome: 'pedidos-por-status', peso: 15, caminho: () => `/pedidos?status=${escolher(STATUS)}&pagina=${inteiro(1, 1000)}` },
+carga/teste-carga.js:49:  { nome: 'busca-produtos', peso: 15, caminho: () => `/produtos/busca?q=${encodeURIComponent(escolher(TERMOS))}` },
+carga/teste-carga.js:54:      const inicio = inteiro(0, 724);
+carga/teste-carga.js:55:      return `/relatorios/vendas-por-dia?inicio=${dia(inicio)}&fim=${dia(inicio + 6)}`;
+carga/teste-carga.js:95:  check(resposta, { 'status 200': (r) => r.status === 200 });

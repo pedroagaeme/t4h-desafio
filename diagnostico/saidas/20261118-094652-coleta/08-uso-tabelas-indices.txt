@@ -1,0 +1,29 @@
+        relname        | seq_scan | seq_tup_read | idx_scan | idx_tup_fetch 
+-----------------------+----------+--------------+----------+---------------
+ produtos              |      713 |     14260000 |    18007 |         14195
+ pedidos               |        3 |       500000 |     6649 |       8933941
+ mv_pedidos_por_status |      689 |         2756 |          |              
+ mv_top_produtos       |        0 |            0 |      124 |          1240
+ clientes              |        0 |            0 |     2858 |          2855
+ itens_pedido          |        0 |            0 |  1692711 |       5064354
+(6 rows)
+
+     relname     |          indexrelname           | idx_scan | idx_tup_read | tamanho 
+-----------------+---------------------------------+----------+--------------+---------
+ itens_pedido    | itens_pedido_pkey               |        0 |            0 | 32 MB
+ mv_top_produtos | idx_mv_top_produtos_receita     |      124 |         1240 | 608 kB
+ pedidos         | idx_pedidos_criado_em           |      414 |      1867267 | 11 MB
+ clientes        | idx_clientes_lower_email        |      676 |          675 | 4792 kB
+ pedidos         | idx_pedidos_status_criado_em_id |      688 |      7032100 | 21 MB
+ pedidos         | idx_pedidos_cliente_id          |      953 |         4765 | 5720 kB
+ clientes        | clientes_pkey                   |     2182 |         2180 | 2208 kB
+ pedidos         | pedidos_pkey                    |     4594 |         4594 | 11 MB
+ produtos        | produtos_pkey                   |    18007 |        18007 | 456 kB
+ itens_pedido    | idx_itens_pedido_pedido_id      |  1692711 |      5068948 | 21 MB
+(10 rows)
+
+ blks_read | blks_hit | pct_cache | temp_files | temp_bytes | xact_commit | xact_rollback | deadlocks 
+-----------+----------+-----------+------------+------------+-------------+---------------+-----------
+   1646142 | 12818015 |     88.62 |         68 |  352206848 |        8263 |             0 |         0
+(1 row)
+

@@ -1,0 +1,108 @@
+=== por tempo total
+ calls | total_ms | media_ms | desvio_ms | pct  |  rows   |   hit   |  lidos  | blocos_chamada | temp_w |                                                    consulta                                                    
+-------+----------+----------+-----------+------+---------+---------+---------+----------------+--------+----------------------------------------------------------------------------------------------------------------
+   392 |    47166 |   120.32 |     92.62 | 43.6 | 5054573 | 6634623 |  522671 |          18258 |      0 | SELECT p.id AS pedido_id, p.criado_em, p.observacoes, i.quantidade, i.preco_unitario_centavos FROM pedidos p J
+   697 |    33381 |    47.89 |    118.99 | 30.9 |   13940 | 5765113 | 1109119 |           9862 |  44028 | SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+   724 |    26471 |    36.56 |     46.78 | 24.5 |   14460 |  133831 |    3765 |            190 |      0 | SELECT * FROM produtos WHERE nome ILIKE $2 || $1 || $3 ORDER BY nome, id LIMIT $4
+   962 |      625 |     0.65 |      6.40 |  0.6 |   14340 |   60796 |    9244 |             72 |      0 | SELECT p.id, p.status, p.criado_em, i.produto_id, i.quantidade, i.preco_unitario_centavos, pr.nome AS produto_
+  2200 |      466 |     0.21 |      2.58 |  0.4 |    2198 |    2365 |    4233 |              2 |      0 | SELECT * FROM clientes WHERE id = $1
+   679 |       28 |     0.04 |      0.02 |  0.0 |     678 |    1078 |    1646 |              4 |      0 | SELECT * FROM clientes WHERE lower(email) = lower($1) ORDER BY id
+   697 |        8 |     0.01 |      0.00 |  0.0 |     697 |     677 |      20 |              1 |      0 | SELECT total FROM mv_pedidos_por_status WHERE status = $1
+   101 |        5 |     0.05 |      0.03 |  0.0 |    1045 |     638 |     608 |             12 |      0 | SELECT id, nome, categoria, unidades, receita_centavos FROM mv_top_produtos ORDER BY receita_centavos DESC, id
+(8 rows)
+
+=== por tempo médio
+ calls | total_ms | media_ms | desvio_ms | pct  |  rows   |   hit   |  lidos  | blocos_chamada | temp_w |                                                    consulta                                                    
+-------+----------+----------+-----------+------+---------+---------+---------+----------------+--------+----------------------------------------------------------------------------------------------------------------
+   392 |    47166 |   120.32 |     92.62 | 43.6 | 5054573 | 6634623 |  522671 |          18258 |      0 | SELECT p.id AS pedido_id, p.criado_em, p.observacoes, i.quantidade, i.preco_unitario_centavos FROM pedidos p J
+   697 |    33381 |    47.89 |    118.99 | 30.9 |   13940 | 5765113 | 1109119 |           9862 |  44028 | SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+   724 |    26471 |    36.56 |     46.78 | 24.5 |   14460 |  133831 |    3765 |            190 |      0 | SELECT * FROM produtos WHERE nome ILIKE $2 || $1 || $3 ORDER BY nome, id LIMIT $4
+   962 |      625 |     0.65 |      6.40 |  0.6 |   14340 |   60796 |    9244 |             72 |      0 | SELECT p.id, p.status, p.criado_em, i.produto_id, i.quantidade, i.preco_unitario_centavos, pr.nome AS produto_
+  2200 |      466 |     0.21 |      2.58 |  0.4 |    2198 |    2365 |    4233 |              2 |      0 | SELECT * FROM clientes WHERE id = $1
+   101 |        5 |     0.05 |      0.03 |  0.0 |    1045 |     638 |     608 |             12 |      0 | SELECT id, nome, categoria, unidades, receita_centavos FROM mv_top_produtos ORDER BY receita_centavos DESC, id
+   679 |       28 |     0.04 |      0.02 |  0.0 |     678 |    1078 |    1646 |              4 |      0 | SELECT * FROM clientes WHERE lower(email) = lower($1) ORDER BY id
+   697 |        8 |     0.01 |      0.00 |  0.0 |     697 |     677 |      20 |              1 |      0 | SELECT total FROM mv_pedidos_por_status WHERE status = $1
+(8 rows)
+
+=== por blocos lidos
+ calls | total_ms | media_ms | desvio_ms | pct  |  rows   |   hit   |  lidos  | blocos_chamada | temp_w |                                                    consulta                                                    
+-------+----------+----------+-----------+------+---------+---------+---------+----------------+--------+----------------------------------------------------------------------------------------------------------------
+   697 |    33381 |    47.89 |    118.99 | 30.9 |   13940 | 5765113 | 1109119 |           9862 |  44028 | SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+   392 |    47166 |   120.32 |     92.62 | 43.6 | 5054573 | 6634623 |  522671 |          18258 |      0 | SELECT p.id AS pedido_id, p.criado_em, p.observacoes, i.quantidade, i.preco_unitario_centavos FROM pedidos p J
+   962 |      625 |     0.65 |      6.40 |  0.6 |   14340 |   60796 |    9244 |             72 |      0 | SELECT p.id, p.status, p.criado_em, i.produto_id, i.quantidade, i.preco_unitario_centavos, pr.nome AS produto_
+  2200 |      466 |     0.21 |      2.58 |  0.4 |    2198 |    2365 |    4233 |              2 |      0 | SELECT * FROM clientes WHERE id = $1
+   724 |    26471 |    36.56 |     46.78 | 24.5 |   14460 |  133831 |    3765 |            190 |      0 | SELECT * FROM produtos WHERE nome ILIKE $2 || $1 || $3 ORDER BY nome, id LIMIT $4
+   679 |       28 |     0.04 |      0.02 |  0.0 |     678 |    1078 |    1646 |              4 |      0 | SELECT * FROM clientes WHERE lower(email) = lower($1) ORDER BY id
+   101 |        5 |     0.05 |      0.03 |  0.0 |    1045 |     638 |     608 |             12 |      0 | SELECT id, nome, categoria, unidades, receita_centavos FROM mv_top_produtos ORDER BY receita_centavos DESC, id
+   697 |        8 |     0.01 |      0.00 |  0.0 |     697 |     677 |      20 |              1 |      0 | SELECT total FROM mv_pedidos_por_status WHERE status = $1
+(8 rows)
+
+=== por blocos por chamada
+ calls | total_ms | media_ms | desvio_ms | pct  |  rows   |   hit   |  lidos  | blocos_chamada | temp_w |                                                    consulta                                                    
+-------+----------+----------+-----------+------+---------+---------+---------+----------------+--------+----------------------------------------------------------------------------------------------------------------
+   392 |    47166 |   120.32 |     92.62 | 43.6 | 5054573 | 6634623 |  522671 |          18258 |      0 | SELECT p.id AS pedido_id, p.criado_em, p.observacoes, i.quantidade, i.preco_unitario_centavos FROM pedidos p J
+   697 |    33381 |    47.89 |    118.99 | 30.9 |   13940 | 5765113 | 1109119 |           9862 |  44028 | SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+   724 |    26471 |    36.56 |     46.78 | 24.5 |   14460 |  133831 |    3765 |            190 |      0 | SELECT * FROM produtos WHERE nome ILIKE $2 || $1 || $3 ORDER BY nome, id LIMIT $4
+   962 |      625 |     0.65 |      6.40 |  0.6 |   14340 |   60796 |    9244 |             72 |      0 | SELECT p.id, p.status, p.criado_em, i.produto_id, i.quantidade, i.preco_unitario_centavos, pr.nome AS produto_
+   101 |        5 |     0.05 |      0.03 |  0.0 |    1045 |     638 |     608 |             12 |      0 | SELECT id, nome, categoria, unidades, receita_centavos FROM mv_top_produtos ORDER BY receita_centavos DESC, id
+   679 |       28 |     0.04 |      0.02 |  0.0 |     678 |    1078 |    1646 |              4 |      0 | SELECT * FROM clientes WHERE lower(email) = lower($1) ORDER BY id
+  2200 |      466 |     0.21 |      2.58 |  0.4 |    2198 |    2365 |    4233 |              2 |      0 | SELECT * FROM clientes WHERE id = $1
+   697 |        8 |     0.01 |      0.00 |  0.0 |     697 |     677 |      20 |              1 |      0 | SELECT total FROM mv_pedidos_por_status WHERE status = $1
+(8 rows)
+
+=== temporários em disco
+ calls | total_ms | media_ms | desvio_ms |  pct  | rows  |   hit   |  lidos  | blocos_chamada | temp_w |                                          consulta                                           
+-------+----------+----------+-----------+-------+-------+---------+---------+----------------+--------+---------------------------------------------------------------------------------------------
+   697 |    33381 |    47.89 |    118.99 | 100.0 | 13940 | 5765113 | 1109119 |           9862 |  44028 | SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+(1 row)
+
+=== texto completo (top 10)
+Expanded display is on.
+-[ RECORD 1 ]-------------------------------------------------------------------------------------------
+calls    | 392
+total_ms | 47166
+query    | SELECT p.id AS pedido_id, p.criado_em, p.observacoes, i.quantidade, i.preco_unitario_centavos+
+         |        FROM pedidos p                                                                        +
+         |        JOIN itens_pedido i ON i.pedido_id = p.id                                             +
+         |       WHERE p.criado_em >= $1::date                                                          +
+         |         AND p.criado_em < $2::date + $3                                                      +
+         |         AND p.status <> $4
+-[ RECORD 2 ]-------------------------------------------------------------------------------------------
+calls    | 697
+total_ms | 33381
+query    | SELECT * FROM pedidos WHERE status = $1 ORDER BY criado_em DESC, id DESC LIMIT $2 OFFSET $3
+-[ RECORD 3 ]-------------------------------------------------------------------------------------------
+calls    | 724
+total_ms | 26471
+query    | SELECT * FROM produtos WHERE nome ILIKE $2 || $1 || $3 ORDER BY nome, id LIMIT $4
+-[ RECORD 4 ]-------------------------------------------------------------------------------------------
+calls    | 962
+total_ms | 625
+query    | SELECT p.id, p.status, p.criado_em,                                                          +
+         |             i.produto_id, i.quantidade, i.preco_unitario_centavos,                           +
+         |             pr.nome AS produto_nome                                                          +
+         |        FROM pedidos p                                                                        +
+         |        LEFT JOIN itens_pedido i ON i.pedido_id = p.id                                        +
+         |        LEFT JOIN produtos pr ON pr.id = i.produto_id                                         +
+         |       WHERE p.cliente_id = $1                                                                +
+         |       ORDER BY p.criado_em DESC, p.id DESC, i.id
+-[ RECORD 5 ]-------------------------------------------------------------------------------------------
+calls    | 2200
+total_ms | 466
+query    | SELECT * FROM clientes WHERE id = $1
+-[ RECORD 6 ]-------------------------------------------------------------------------------------------
+calls    | 679
+total_ms | 28
+query    | SELECT * FROM clientes WHERE lower(email) = lower($1) ORDER BY id
+-[ RECORD 7 ]-------------------------------------------------------------------------------------------
+calls    | 697
+total_ms | 8
+query    | SELECT total FROM mv_pedidos_por_status WHERE status = $1
+-[ RECORD 8 ]-------------------------------------------------------------------------------------------
+calls    | 101
+total_ms | 5
+query    | SELECT id, nome, categoria, unidades, receita_centavos                                       +
+         |        FROM mv_top_produtos                                                                  +
+         |       ORDER BY receita_centavos DESC, id                                                     +
+         |       LIMIT $1
+
