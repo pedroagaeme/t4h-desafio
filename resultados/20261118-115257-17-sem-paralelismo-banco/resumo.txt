@@ -1,0 +1,17 @@
+Medição: 17-sem-paralelismo-banco
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        16300
+Requisições/s:      270.94
+Tempo de resposta:  mediana 84.3 ms | p95 215.1 ms | p99 394.0 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               4131      10.8 ms       95.1 ms       99.3 ms       0.0%    
+cliente-por-email     2405      10.9 ms       95.2 ms       98.7 ms       0.0%    
+pedidos-do-cliente    3322      90.4 ms       104.3 ms      193.1 ms      0.0%    
+pedidos-por-status    2366      93.1 ms       106.2 ms      194.8 ms      0.0%    
+busca-produtos        2443      77.1 ms       99.0 ms       102.9 ms      0.0%    
+vendas-por-dia        1325      290.7 ms      402.0 ms      492.6 ms      0.0%    
+top-produtos          308       11.0 ms       95.8 ms       99.0 ms       0.0%    
