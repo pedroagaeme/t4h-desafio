@@ -61,7 +61,7 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 | 10 | 3 | View materializada `mv_pedidos_por_status` (status, total) e `pedidos-por-status` lendo a contagem dela no lugar de `count(*)` | [Wiki: Slow Counting](https://wiki.postgresql.org/wiki/Slow_Counting), [Docs 41.3](https://www.postgresql.org/docs/16/rules-materializedviews.html), [REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-refreshmaterializedview.html) | Aplicada e medida | mediana `pedidos-por-status`: 679,4 ms<br>p95 `pedidos-por-status`: 1596,0 ms<br>p99 `pedidos-por-status`: 2473,5 ms<br>45,21 req/s | mediana `pedidos-por-status`: 404,3 ms<br>p95 `pedidos-por-status`: 1203,3 ms<br>p99 `pedidos-por-status`: 1669,5 ms<br>55,57 req/s | `*-09-juncao-pedidos-do-cliente` | `*-10-view-contagem-status` | H10 confirmada: `pedidos-por-status` mediana −40,5%, p95 −24,6%, p99 −32,5% (as 3 execuções melhores que o antes nas 3 métricas). Total: mediana −21,6%, p95 −12,5%, p99 −21,7%, req/s +22,9%. CPU por requisição do banco 20,4 → 15,5 ms (−24,1%). Das 18 comparações das outras 6 rotas, 17 melhoraram e 1 piorou (p99 de `busca-produtos`, +18,7%). Sem serviço novo; a view ocupa 16 kB e um `REFRESH` leva 70,583 ms. A primeira tentativa do #10 não alterou a rota e foi refeita (ver nota no detalhe). Memória do banco: máx. 507,2 MiB de 512 MiB (ver detalhe) |
 | 11 | 3 | `vendas-por-dia` agrupando por dia no banco (`GROUP BY`, `count(DISTINCT p.id)`, `sum`), sem a coluna `observacoes`, no lugar de trazer uma linha por item e agrupar em JavaScript | [Docs 9.21](https://www.postgresql.org/docs/16/functions-aggregate.html) | Aplicada, sem ganho | mediana `vendas-por-dia`: 593,2 ms<br>p95 `vendas-por-dia`: 1025,7 ms<br>p99 `vendas-por-dia`: 1250,7 ms<br>55,57 req/s | mediana `vendas-por-dia`: 605,5 ms<br>p95 `vendas-por-dia`: 1032,9 ms<br>p99 `vendas-por-dia`: 1397,7 ms<br>54,26 req/s | `*-10-view-contagem-status` | `*-11-agregacao-vendas-por-dia` | H11 retestada não confirmada: `vendas-por-dia` mediana +2,1%, p95 +0,7%, p99 +11,8% (mediana acima do antes nas 3 execuções; p95 e p99 abaixo em 1 das 3). Total: mediana −3,7%, p95 −0,6%, p99 +31,3%, req/s −2,4%. A CPU média da API caiu de 43,9% para 5,9% e a do banco subiu de 85,9% para 100,4%; CPU por requisição do banco 15,5 → 18,5 ms (+19,7%). Das 18 comparações das outras 6 rotas, 12 melhoraram e 6 pioraram (de +0,2% a +33,4%): as rotas ligadas à API melhoraram na cauda e `pedidos-por-status` piorou (p95 +32,8%, p99 +33,4%). Não adotada: o código fica na branch `exp-11-agregacao-vendas-por-dia-refeito`, fora da linha principal; o #12 parte do estado após o #10. A primeira tentativa, sobre o estado do #9 com uma view sem uso, também não confirmou (ver nota no detalhe) |
 | 12 | 3 | Índice em `clientes (lower(email))` para `cliente-por-email` | [Docs 11.7](https://www.postgresql.org/docs/16/indexes-expressional.html) | Aplicada e medida | mediana `cliente-por-email`: 486,8 ms<br>p95 `cliente-por-email`: 786,7 ms<br>p99 `cliente-por-email`: 899,8 ms<br>55,57 req/s | mediana `cliente-por-email`: 195,3 ms<br>p95 `cliente-por-email`: 507,7 ms<br>p99 `cliente-por-email`: 700,5 ms<br>65,71 req/s | `*-10-view-contagem-status` | `*-12-indice-email-clientes` | H12 confirmada: `cliente-por-email` mediana −59,9%, p95 −35,5%, p99 −22,1% (as 3 execuções melhores que o antes nas 3 métricas). Total: mediana −9,3%, p95 −12,3%, p99 −12,7%, req/s +18,2%. CPU por requisição do banco 15,5 → 9,8 ms (−36,9%); CPU média da API 43,9% → 48,6%, cerca de 97% da quota de 0,5 CPU. Das 18 comparações das outras 6 rotas, 13 melhoraram e 5 pioraram (de +0,6% a +32,1%; a maior em `top-produtos`, com 56 a 66 requisições por execução). Sem serviço novo; o índice ocupa 4.907.008 bytes (4792 kB) e a criação leva 422,075 ms (ver detalhe). A primeira tentativa, sobre o estado do #9 com uma view sem uso, deu resultado parecido (ver nota no detalhe) |
-| 13 | 4 | Tirar `p.observacoes` do SELECT de `vendas-por-dia` (o JS não usa a coluna) | Rodada 4 (`diagnostico/README.md`) | Pesquisada, teste futuro | — | — | — | — | — |
+| 13 | 4 | Tirar `p.observacoes` do SELECT de `vendas-por-dia` (o JS não usa a coluna) | Rodada 4 (`diagnostico/README.md`) | Aplicada e medida | mediana `vendas-por-dia`: 540,0 ms<br>p95 `vendas-por-dia`: 988,7 ms<br>p95 total: 698,6 ms<br>65,71 req/s | mediana `vendas-por-dia`: 386,8 ms<br>p95 `vendas-por-dia`: 737,8 ms<br>p95 total: 521,1 ms<br>87,66 req/s | `*-12-indice-email-clientes` | `*-13-vendas-sem-observacoes` | H13 confirmada: `vendas-por-dia` mediana −28,4%, p95 −25,4%; req/s +33,4%. Total: mediana −31,0%, p95 −25,4%, p99 −2,0%. CPU média da API 48,6% → 43,1% com mais requisições (0,74 → 0,49 pontos percentuais de CPU por req/s); CPU média do banco 64,1% → 93,0%, então o banco passou a ser o limite (inferência). O p95 e o p99 de `pedidos-por-status` pioraram (903,3 → 1129,1 ms e 1227,9 → 1640,5 ms), causa não investigada. Sem serviço novo |
 
 Status: `Aplicada e medida`, `Aplicada, sem ganho` ou `Pesquisada, teste futuro`. Ao medir, troque o status e preencha Depois (medianas das 3 execuções), a pasta e a conclusão.
 
@@ -454,6 +454,37 @@ A memória máxima do banco segue perto do limite de 512 MiB (506,8 MiB na segun
 
 Nota de método: a primeira tentativa do #12 (`resultados/20261117-183203-…`, `-183324-…` e `-183444-12-indice-email-clientes-1a-tentativa`) foi medida sobre o estado do #9 com uma view sem uso no banco e deu resultado parecido: `cliente-por-email` mediana 579,7 → 195,4 ms (−66,3%), p95 857,0 → 491,0 ms (−42,7%), p99 964,4 → 680,8 ms (−29,4%), req/s 46,38 → 60,33 (+30,1%), CPU por requisição do banco 20,6 → 14,5 ms. O ganho de vazão foi maior lá porque o banco ainda não tinha a contagem de `pedidos-por-status` em view.
 
+### Detalhe do #13 (mediana das 3 execuções, antes → depois)
+
+Rótulo `13-vendas-sem-observacoes`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), commit `62a5493`, 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções.
+
+- `resultados/20261118-102920-13-vendas-sem-observacoes`
+- `resultados/20261118-103041-13-vendas-sem-observacoes`
+- `resultados/20261118-103201-13-vendas-sem-observacoes`
+
+Antes: as 3 execuções do #12 refeito (`resultados/20261117-192805-12-indice-email-clientes`, `-192926-` e `-193047-`).
+
+| rota | req | mediana (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|
+| total | 3973 → 5286 | 283,1 → 195,3 | 698,6 → 521,1 | 994,6 → 974,7 |
+| cliente | 1037 → 1366 | 194,4 → 115,4 | 494,8 → 326,0 | 685,2 → 425,3 |
+| cliente-por-email | 570 → 779 | 195,3 → 114,5 | 507,7 → 330,4 | 700,5 → 448,2 |
+| pedidos-do-cliente | 815 → 1102 | 299,6 → 220,3 | 695,9 → 497,8 | 920,2 → 605,9 |
+| pedidos-por-status | 576 → 757 | 380,0 → 285,3 | 903,3 → 1129,1 | 1227,9 → 1640,5 |
+| busca-produtos | 597 → 781 | 286,3 → 218,9 | 572,5 → 441,8 | 783,9 → 551,3 |
+| vendas-por-dia | 310 → 407 | 540,0 → 386,8 | 988,7 → 737,8 | 1096,3 → 974,0 |
+| top-produtos | 66 → 92 | 199,0 → 127,9 | 455,1 → 322,8 | 550,6 → 409,3 |
+
+Requisições por segundo: 65,71 → 87,66. Erros: 0,0% nas 3 execuções.
+
+| contêiner | cpu média | cpu máx | mem média (MiB) | mem máx (MiB) |
+|---|---|---|---|---|
+| banco | 64,1 → 93,0% | 99,8 → 99,9% | 470,7 → 461,6 | 501,5 → 492,7 |
+| api | 48,6 → 43,1% | 52,9 → 53,0% | 36,9 → 32,0 | 51,7 → 35,4 |
+
+CPU média da API por req/s (pontos percentuais por requisição por segundo): 0,74 → 0,49.
+O banco ficou em 93,0% de CPU média e 492,7 MiB de memória máxima (limite de 512 MiB); `pedidos-por-status` recebeu 757 requisições (antes 576) com p95 e p99 maiores, o que é compatível com o banco saturado (inferência, não testada).
+
 ## Hipóteses (escritas antes de aplicar)
 
 **H1 (#1).** Criar um índice em `itens_pedido(pedido_id)` deve reduzir o p95 da rota `pedidos-do-cliente`, porque, segundo a Rodada 1, cada uma das 5 consultas por requisição hoje lê a tabela inteira (varredura sequencial) e descarta 499999 linhas para devolver 2.
@@ -493,3 +524,4 @@ O #9 parte do estado após o #8.
 O #10 parte do estado após o #9.
 O #11 parte do estado após o #10.
 O #12 parte do estado após o #10 (o #11 não foi adotado).
+O #13 parte do estado após o #12.
