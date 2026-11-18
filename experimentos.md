@@ -62,7 +62,7 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 | 11 | 3 | `vendas-por-dia` agrupando por dia no banco (`GROUP BY`, `count(DISTINCT p.id)`, `sum`), sem a coluna `observacoes`, no lugar de trazer uma linha por item e agrupar em JavaScript | [Docs 9.21](https://www.postgresql.org/docs/16/functions-aggregate.html) | Aplicada, sem ganho | mediana `vendas-por-dia`: 593,2 ms<br>p95 `vendas-por-dia`: 1025,7 ms<br>p99 `vendas-por-dia`: 1250,7 ms<br>55,57 req/s | mediana `vendas-por-dia`: 605,5 ms<br>p95 `vendas-por-dia`: 1032,9 ms<br>p99 `vendas-por-dia`: 1397,7 ms<br>54,26 req/s | `*-10-view-contagem-status` | `*-11-agregacao-vendas-por-dia` | H11 retestada não confirmada: `vendas-por-dia` mediana +2,1%, p95 +0,7%, p99 +11,8% (mediana acima do antes nas 3 execuções; p95 e p99 abaixo em 1 das 3). Total: mediana −3,7%, p95 −0,6%, p99 +31,3%, req/s −2,4%. A CPU média da API caiu de 43,9% para 5,9% e a do banco subiu de 85,9% para 100,4%; CPU por requisição do banco 15,5 → 18,5 ms (+19,7%). Das 18 comparações das outras 6 rotas, 12 melhoraram e 6 pioraram (de +0,2% a +33,4%): as rotas ligadas à API melhoraram na cauda e `pedidos-por-status` piorou (p95 +32,8%, p99 +33,4%). Não adotada: o código fica na branch `exp-11-agregacao-vendas-por-dia-refeito`, fora da linha principal; o #12 parte do estado após o #10. A primeira tentativa, sobre o estado do #9 com uma view sem uso, também não confirmou (ver nota no detalhe) |
 | 12 | 3 | Índice em `clientes (lower(email))` para `cliente-por-email` | [Docs 11.7](https://www.postgresql.org/docs/16/indexes-expressional.html) | Aplicada e medida | mediana `cliente-por-email`: 486,8 ms<br>p95 `cliente-por-email`: 786,7 ms<br>p99 `cliente-por-email`: 899,8 ms<br>55,57 req/s | mediana `cliente-por-email`: 195,3 ms<br>p95 `cliente-por-email`: 507,7 ms<br>p99 `cliente-por-email`: 700,5 ms<br>65,71 req/s | `*-10-view-contagem-status` | `*-12-indice-email-clientes` | H12 confirmada: `cliente-por-email` mediana −59,9%, p95 −35,5%, p99 −22,1% (as 3 execuções melhores que o antes nas 3 métricas). Total: mediana −9,3%, p95 −12,3%, p99 −12,7%, req/s +18,2%. CPU por requisição do banco 15,5 → 9,8 ms (−36,9%); CPU média da API 43,9% → 48,6%, cerca de 97% da quota de 0,5 CPU. Das 18 comparações das outras 6 rotas, 13 melhoraram e 5 pioraram (de +0,6% a +32,1%; a maior em `top-produtos`, com 56 a 66 requisições por execução). Sem serviço novo; o índice ocupa 4.907.008 bytes (4792 kB) e a criação leva 422,075 ms (ver detalhe). A primeira tentativa, sobre o estado do #9 com uma view sem uso, deu resultado parecido (ver nota no detalhe) |
 | 13 | 4 | Tirar `p.observacoes` do SELECT de `vendas-por-dia` (o JS não usa a coluna) | Rodada 4 (`diagnostico/README.md`) | Aplicada e medida | mediana `vendas-por-dia`: 540,0 ms<br>p95 `vendas-por-dia`: 988,7 ms<br>p95 total: 698,6 ms<br>65,71 req/s | mediana `vendas-por-dia`: 386,8 ms<br>p95 `vendas-por-dia`: 737,8 ms<br>p95 total: 521,1 ms<br>87,66 req/s | `*-12-indice-email-clientes` | `*-13-vendas-sem-observacoes` | H13 confirmada: `vendas-por-dia` mediana −28,4%, p95 −25,4%; req/s +33,4%. Total: mediana −31,0%, p95 −25,4%, p99 −2,0%. CPU média da API 48,6% → 43,1% com mais requisições (0,74 → 0,49 pontos percentuais de CPU por req/s); CPU média do banco 64,1% → 93,0%, então o banco passou a ser o limite (inferência). O p95 e o p99 de `pedidos-por-status` pioraram (903,3 → 1129,1 ms e 1227,9 → 1640,5 ms), causa não investigada. Sem serviço novo |
-| 14 | 4 | Listagem de `pedidos` com junção adiada: subconsulta lê só `id` pelo índice `(status, criado_em DESC, id DESC)` e a consulta externa busca as 4 colunas da rota para os 20 `id`s; `VACUUM (ANALYZE) pedidos` em novo `banco/10-vacuum-pedidos.sql` | [Docs: Index-Only Scans and Covering Indexes](https://www.postgresql.org/docs/16/indexes-index-only-scans.html); Rodada 4 (`diagnostico/README.md`) | Pesquisada, teste futuro | — | — | — | — | — |
+| 14 | 4 | Listagem de `pedidos` com junção adiada: subconsulta lê só `id` pelo índice `(status, criado_em DESC, id DESC)` e a consulta externa busca as 4 colunas da rota para os 20 `id`s; `VACUUM (ANALYZE) pedidos` em `banco/10-vacuum-pedidos.sql` | [Docs: Index-Only Scans and Covering Indexes](https://www.postgresql.org/docs/16/indexes-index-only-scans.html); Rodada 4 (`diagnostico/README.md`) | Aplicada e medida | mediana `pedidos-por-status`: 285,3 ms<br>p95 `pedidos-por-status`: 1129,1 ms<br>p99 `pedidos-por-status`: 1640,5 ms<br>87,66 req/s | mediana `pedidos-por-status`: 200,0 ms<br>p95 `pedidos-por-status`: 420,7 ms<br>p99 `pedidos-por-status`: 520,7 ms<br>107,34 req/s | `*-13-vendas-sem-observacoes` | `*-14-listagem-juncao-adiada` | H14 confirmada: `pedidos-por-status` mediana −29,9%, p95 −62,7%, p99 −68,3%; req/s +22,5%. Total: mediana −9,8%, p95 −21,9%, p99 −47,6%. Plano: Index Only Scan com `Heap Fetches: 0`; blocos lidos na página 500: 10.052 → 139 e na página 6000: 120.594 → 681 (`diagnostico/saidas/20261118-104954-explain-listagem-juncao-adiada/planos.txt` e `diagnostico/saidas/20261118-094652-coleta/10-explain-consultas.txt`). CPU média do banco 93,0% → 65,2%; da API 43,1% → 49,5% (cpu máx da API 51,7%), então a API voltou a ser o limite (inferência). Sem serviço novo; o `VACUUM` roda na criação do banco |
 
 Status: `Aplicada e medida`, `Aplicada, sem ganho` ou `Pesquisada, teste futuro`. Ao medir, troque o status e preencha Depois (medianas das 3 execuções), a pasta e a conclusão.
 
@@ -486,6 +486,37 @@ Requisições por segundo: 65,71 → 87,66. Erros: 0,0% nas 3 execuções.
 CPU média da API por req/s (pontos percentuais por requisição por segundo): 0,74 → 0,49.
 O banco ficou em 93,0% de CPU média e 492,7 MiB de memória máxima (limite de 512 MiB); `pedidos-por-status` recebeu 757 requisições (antes 576) com p95 e p99 maiores, o que é compatível com o banco saturado (inferência, não testada).
 
+### Detalhe do #14 (mediana das 3 execuções, antes → depois)
+
+Rótulo `14-listagem-juncao-adiada`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), commit `ee7980d`, 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções.
+
+- `resultados/20261118-104326-14-listagem-juncao-adiada`
+- `resultados/20261118-104445-14-listagem-juncao-adiada`
+- `resultados/20261118-104605-14-listagem-juncao-adiada`
+
+Antes: as 3 execuções do #13 (`resultados/*-13-vendas-sem-observacoes`). Planos do depois: `diagnostico/saidas/20261118-104954-explain-listagem-juncao-adiada/planos.txt`.
+
+| rota | req | mediana (ms) | p95 (ms) | p99 (ms) |
+|---|---|---|---|---|
+| total | 5286 → 6458 | 195,3 → 176,1 | 521,1 → 406,9 | 974,7 → 510,9 |
+| cliente | 1366 → 1632 | 115,4 → 111,5 | 326,0 → 315,3 | 425,3 → 408,4 |
+| cliente-por-email | 779 → 961 | 114,5 → 112,6 | 330,4 → 362,0 | 448,2 → 443,1 |
+| pedidos-do-cliente | 1102 → 1374 | 220,3 → 188,2 | 497,8 → 412,6 | 605,9 → 512,5 |
+| pedidos-por-status | 757 → 934 | 285,3 → 200,0 | 1129,1 → 420,7 | 1640,5 → 520,7 |
+| busca-produtos | 781 → 952 | 218,9 → 210,4 | 441,8 → 414,5 | 551,3 → 516,4 |
+| vendas-por-dia | 407 → 501 | 386,8 → 270,9 | 737,8 → 491,6 | 974,0 → 616,5 |
+| top-produtos | 92 → 111 | 127,9 → 113,9 | 322,8 → 308,1 | 409,3 → 401,8 |
+
+Requisições por segundo: 87,66 → 107,34. Erros: 0,0% nas 3 execuções.
+
+| contêiner | cpu média | cpu máx | mem média (MiB) | mem máx (MiB) |
+|---|---|---|---|---|
+| banco | 93,0 → 65,2% | 99,9 → 83,2% | 461,6 → 476,5 | 492,7 → 486,5 |
+| api | 43,1 → 49,5% | 53,0 → 51,7% | 32,0 → 28,8 | 35,4 → 31,7 |
+
+Blocos lidos (acertos mais leituras) pela listagem, antes → depois: página 500 10.052 → 139; página 6000 120.594 → 681.
+O p95 e o p99 de `pedidos-por-status`, que haviam subido no #13 com o banco em 93,0% de CPU média, foram de 1129,1 para 420,7 ms e de 1640,5 para 520,7 ms com o banco em 65,2% (a ligação com a saturação do banco é inferência, não testada).
+
 ## Hipóteses (escritas antes de aplicar)
 
 **H1 (#1).** Criar um índice em `itens_pedido(pedido_id)` deve reduzir o p95 da rota `pedidos-do-cliente`, porque, segundo a Rodada 1, cada uma das 5 consultas por requisição hoje lê a tabela inteira (varredura sequencial) e descarta 499999 linhas para devolver 2.
@@ -528,3 +559,4 @@ O #10 parte do estado após o #9.
 O #11 parte do estado após o #10.
 O #12 parte do estado após o #10 (o #11 não foi adotado).
 O #13 parte do estado após o #12.
+O #14 parte do estado após o #13.
