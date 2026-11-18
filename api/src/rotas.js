@@ -155,7 +155,7 @@ rotas.get('/relatorios/vendas-por-dia', assincrono(async (req, res) => {
   }
 
   const linhas = await consultar(
-    `SELECT p.id AS pedido_id, p.criado_em, p.observacoes, i.quantidade, i.preco_unitario_centavos
+    `SELECT p.id AS pedido_id, p.criado_em, i.quantidade, i.preco_unitario_centavos
        FROM pedidos p
        JOIN itens_pedido i ON i.pedido_id = p.id
       WHERE p.criado_em >= $1::date
