@@ -1,0 +1,17 @@
+Medição: 18-view-vendas-por-dia
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        45243
+Requisições/s:      753.14
+Tempo de resposta:  mediana 13.6 ms | p95 69.5 ms | p99 78.1 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               11432     10.5 ms       65.1 ms       73.4 ms       0.0%    
+cliente-por-email     6809      10.7 ms       65.5 ms       74.5 ms       0.0%    
+pedidos-do-cliente    8972      15.7 ms       71.2 ms       80.5 ms       0.0%    
+pedidos-por-status    6749      16.5 ms       72.5 ms       81.3 ms       0.0%    
+busca-produtos        6794      14.1 ms       69.5 ms       78.3 ms       0.0%    
+vendas-por-dia        3611      10.7 ms       65.5 ms       75.7 ms       0.0%    
+top-produtos          876       10.6 ms       65.4 ms       76.0 ms       0.0%    
