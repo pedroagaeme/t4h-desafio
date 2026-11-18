@@ -1,0 +1,17 @@
+Medição: 15-vendas-agregacao-sql
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        7703
+Requisições/s:      128.06
+Tempo de resposta:  mediana 103.8 ms | p95 399.6 ms | p99 509.9 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               1955      96.5 ms       194.2 ms      199.2 ms      0.0%    
+cliente-por-email     1137      96.8 ms       196.1 ms      201.0 ms      0.0%    
+pedidos-do-cliente    1608      106.6 ms      295.1 ms      303.1 ms      0.0%    
+pedidos-por-status    1118      110.5 ms      296.6 ms      302.6 ms      0.0%    
+busca-produtos        1143      202.6 ms      304.9 ms      397.1 ms      0.0%    
+vendas-por-dia        610       404.0 ms      598.7 ms      686.1 ms      0.0%    
+top-produtos          132       97.2 ms       191.0 ms      197.2 ms      0.0%    
