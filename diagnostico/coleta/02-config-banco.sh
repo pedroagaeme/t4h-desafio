@@ -1,0 +1,2 @@
+source "$(dirname "$0")/lib.sh"
+sql -c "SELECT name, setting, unit, source FROM pg_settings WHERE name IN ('shared_buffers','work_mem','effective_cache_size','random_page_cost','seq_page_cost','cpu_tuple_cost','max_connections','max_parallel_workers_per_gather','max_parallel_workers','max_worker_processes','parallel_setup_cost','parallel_tuple_cost','min_parallel_table_scan_size','jit','autovacuum','track_io_timing','shared_preload_libraries','synchronous_commit','default_statistics_target') ORDER BY name" 2>&1 | saida

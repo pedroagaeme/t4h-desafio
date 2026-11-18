@@ -148,3 +148,63 @@ Saídas em `diagnostico/saidas/`: `20261116-161317-rotas-isoladas-pos-8`, `20261
 **Sob carga (`pgss-pos-8`, 20 usuários, 60 s).** 45,92 req/s; mediana 276,5 ms, p95 1609,1 ms, p99 2222,6 ms; 0% de erros. Banco: 0,91 CPU de 1,00, throttled em 82,5% dos períodos, memória de 202,1 MiB no fim e 254,9 MiB no pico. API: 0,41 CPU de 0,50, throttled em 62,5% dos períodos, memória de 35,2 MiB no fim e 51,2 MiB no pico.
 
 **Tempo do banco por consulta.** `lower(email)`: 39,1% (235,0 ms por chamada). `vendas-por-dia`: 16,9% (182,3 ms; 12,9 mil linhas por chamada). Listagem por status: 16,6% (103,4 ms; 21195 blocos temporários escritos). `count(*)` por status: 15,2% (95,1 ms). `produtos ILIKE`: 11,4% (65,6 ms). As consultas de `pedidos-do-cliente` somam 0,6%.
+
+## Rodada 4: CPU e consultas não otimizadas
+
+Estado medido: depois do #12 (branch `exp-12-indice-email-clientes-refeito`, commit b424474). Coleta em `diagnostico/saidas/20261118-094652-coleta/`, gerada por `diagnostico/coleta/*.sh`. A carga `diagnostico-carga` (65,6 req/s, p95 693 ms, 0% de erros, contrato mantido) não é medição de experimento: o banco foi reiniciado para ativar o `pg_stat_statements`.
+
+### Fatos medidos
+
+| fato | valor | arquivo |
+|---|---|---|
+| API no limite da cota | `nr_throttled` 715 de 782 períodos; CPU média 48,4%, máxima 51% | 06 |
+| CPU da API por requisição | 37,6 s para ~4.800 requisições, ≈ 7,8 ms; teto ≈ 64 req/s (observado: 65,6) | 06 |
+| `vendas-por-dia` na API | 81,6 ms de CPU por chamada; 392 chamadas ≈ 32 s, ~85% da CPU da API | 05, 06, 07 |
+| Rotas leves | 2,0 a 2,8 ms de CPU de API e 0,4 a 0,8 ms de banco por requisição; mediana sob carga 190 a 200 ms | 05, 06 |
+| Banco | 64% de CPU média; 42% dos períodos limitados; 46% da CPU em kernel; teto ≈ 95 req/s | 06 |
+| Conexões | pool de 10; 0 a 1 ativa na maioria das amostras (amostras a cada ~2 s) | 06 |
+| Memória do banco | 242 MiB de 512 MiB; sem eventos `high`/`max` | 06 |
+| Tempo no banco (pgss, proporção) | vendas 43,6%; listagem 30,9%; busca 24,5%; resto ≤ 0,6% cada | 07 |
+| Listagem | ~1 buffer por linha pulada pelo OFFSET (página 500: 10.003 buffers, 10,1 ms; página 6000: 117 mil, 67 ms) | 10 |
+| Carga da listagem | `pagina` de 1 a 1000 (`carga/teste-carga.js:48`) | 10 |
+| Página profunda | página 15000 vira Parallel Seq Scan com ordenação em disco, 600 ms; 68 arquivos temporários, 352 MB | 08, 10 |
+| Vendas, plano | Gather com 2 workers, 14,6 ms; 17.308 de 18.322 buffers nas 4.313 sondagens em `itens_pedido` | 10 |
+| Vendas, linhas | ~12,9 mil linhas por chamada; `observacoes` tem 277 bytes em média e o JS não a usa | 03, 07 |
+| Busca | Seq Scan em `produtos` (713 varreduras); 9,9 ms de 10,3 ms no filtro `ILIKE`; collation `en_US.utf8`; `pg_trgm` 1.6 disponível | 08, 10 |
+| Mapa de visibilidade | `relallvisible` = 0 em todas as tabelas no momento da coleta 03 | 03 |
+| JIT | nenhuma consulta usou JIT | 10 |
+| Log da API | `api/src/server.js` grava, em toda requisição, uma linha JSON com a resposta inteira (`resposta: corpo`) | 09 |
+
+### Diagnóstico (inferências)
+
+- A CPU da API é o gargalo. Quase toda ela vem de `vendas-por-dia` (SQL devolvendo ~4 MB por chamada e laço em JS). A cota de 0,5 CPU pausa o contêiner no meio dessas chamadas, o que provavelmente explica o piso de ~190 ms das rotas leves. A confirmar medindo a latência das rotas leves depois de reduzir a CPU de `vendas-por-dia`.
+- O banco é o segundo limite (~95 req/s). Se a API deixar de ser o gargalo, o ganho fica limitado por ele, então precisa de mais de um passo.
+- Os tempos do pg_stat_statements estão inflados pela divisão de CPU; usar só proporções.
+
+### Candidatos, em ordem
+
+1. `vendas-por-dia`: tirar `observacoes` do SELECT (isola o custo de transferência e conversão).
+2. `vendas-por-dia`: agregar por dia no SQL (retestar o antigo #11; antes o banco saturava, agora o gargalo é a API).
+3. Listagem: junção adiada sobre o índice existente `(status, criado_em DESC, id DESC)`, que já contém `id`, mais `VACUUM` num novo `banco/10-….sql` para preencher o mapa de visibilidade.
+4. Busca: índice trigram (`pg_trgm`) em `produtos.nome`.
+5. Paralelismo: comparar o custo de `vendas-por-dia` com `max_parallel_workers_per_gather` em 2 e em 0 (script `11`).
+6. Índice de cobertura `INCLUDE (quantidade, preco_unitario_centavos)` em `itens_pedido`: ganho limitado (~1/4 dos buffers de vendas).
+7. Log da API: registrar o corpo da resposta só quando o status for ≥ 400 e manter a linha por requisição (método, URL, status, duração).
+   - O log não é requisito: o enunciado (seção 07) fixa o que a rota devolve, e `scripts/`, `carga/` e `verificar.js` não leem os logs da API. O README só diz onde os logs ficam (`docker compose logs -f api`), e isso continua valendo.
+   - Os corpos de erro desta API são mensagens curtas (`{ erro: '...' }`), sem dados de clientes. O corpo das respostas 200 inclui nome e e-mail de clientes, o que em uma aplicação real seria dado pessoal nos logs.
+   - Declarar a mudança no `experimentos.md`, porque o conteúdo do log muda. O ganho de CPU é hipótese até medir.
+
+### Descartados ou sem evidência
+
+- Tamanho do pool: 0 a 1 conexão ativa por amostra.
+- JIT: não usado.
+- `shared_buffers` e `effective_cache_size`: só depois de ver se ainda há custo de kernel no banco depois dos passos 1 a 4.
+
+### Limites
+
+- A amostragem de conexões (~2 s) é fraca.
+- O custo por rota foi medido sem carga, em sequência.
+- A lei da utilização (teto = capacidade ÷ custo por requisição) ainda não tem fonte aberta.
+- O custo do log com corpo ainda não foi medido isoladamente.
+
+Fonte aberta: PostgreSQL 16, Index-Only Scans and Covering Indexes (https://www.postgresql.org/docs/16/indexes-index-only-scans.html).
