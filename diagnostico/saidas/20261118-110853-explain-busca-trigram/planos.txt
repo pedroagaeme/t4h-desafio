@@ -1,0 +1,45 @@
+== cadeira
+   Buffers: shared hit=11 read=197
+         Buffers: shared hit=11 read=197
+         ->  Bitmap Heap Scan on produtos  (cost=52.84..255.47 rows=1010 width=44) (actual time=0.292..2.952 rows=1000 loops=1)
+               Buffers: shared hit=5 read=197
+               ->  Bitmap Index Scan on idx_produtos_nome_trgm  (cost=0.00..52.59 rows=1010 width=0) (actual time=0.256..0.256 rows=1000 loops=1)
+                     Buffers: shared hit=5 read=7
+   Buffers: shared hit=96 read=24 dirtied=6
+ Execution Time: 3.454 ms
+== lumin
+   Buffers: shared hit=200 read=3
+         Buffers: shared hit=200 read=3
+         ->  Bitmap Heap Scan on produtos  (cost=35.48..238.10 rows=1010 width=44) (actual time=0.224..1.121 rows=1000 loops=1)
+               Buffers: shared hit=194 read=3
+               ->  Bitmap Index Scan on idx_produtos_nome_trgm  (cost=0.00..35.22 rows=1010 width=0) (actual time=0.194..0.195 rows=1000 loops=1)
+                     Buffers: shared hit=4 read=3
+   Buffers: shared hit=114
+ Execution Time: 1.683 ms
+== ERGO
+   Buffers: shared hit=130 read=2
+         Buffers: shared hit=130 read=2
+         ->  Bitmap Heap Scan on produtos  (cost=46.83..287.33 rows=4040 width=44) (actual time=0.226..1.400 rows=2000 loops=1)
+               Buffers: shared hit=124 read=2
+               ->  Bitmap Index Scan on idx_produtos_nome_trgm  (cost=0.00..45.82 rows=4040 width=0) (actual time=0.193..0.193 rows=2000 loops=1)
+                     Buffers: shared hit=3 read=2
+   Buffers: shared hit=114
+ Execution Time: 1.865 ms
+== sem fio
+   Buffers: shared hit=134 read=6
+         Buffers: shared hit=134 read=6
+         ->  Bitmap Heap Scan on produtos  (cost=47.55..54.96 rows=2 width=44) (actual time=0.527..1.787 rows=2000 loops=1)
+               Buffers: shared hit=128 read=6
+               ->  Bitmap Index Scan on idx_produtos_nome_trgm  (cost=0.00..47.55 rows=2 width=0) (actual time=0.395..0.396 rows=2000 loops=1)
+                     Buffers: shared hit=6 read=6
+   Buffers: shared hit=114
+ Execution Time: 2.260 ms
+== inexistente
+   Buffers: shared hit=21 read=4
+         Buffers: shared hit=21 read=4
+         ->  Bitmap Heap Scan on produtos  (cost=82.28..89.69 rows=2 width=44) (actual time=0.096..0.097 rows=0 loops=1)
+               Buffers: shared hit=15 read=4
+               ->  Bitmap Index Scan on idx_produtos_nome_trgm  (cost=0.00..82.28 rows=2 width=0) (actual time=0.095..0.095 rows=0 loops=1)
+                     Buffers: shared hit=15 read=4
+   Buffers: shared hit=114
+ Execution Time: 0.231 ms
