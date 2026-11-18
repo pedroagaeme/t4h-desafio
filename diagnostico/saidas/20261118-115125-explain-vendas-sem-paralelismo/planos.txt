@@ -1,0 +1,7 @@
+0
+         Sort Method: quicksort  Memory: 991kB
+ Planning Time: 4.525 ms
+ Execution Time: 176.158 ms
+         Sort Method: quicksort  Memory: 991kB
+ Planning Time: 0.681 ms
+ Execution Time: 22.872 ms
