@@ -1,0 +1,17 @@
+Medição: 14-listagem-juncao-adiada
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        6504
+Requisições/s:      108.26
+Tempo de resposta:  mediana 176.0 ms | p95 407.5 ms | p99 510.9 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               1638      111.6 ms      312.2 ms      407.1 ms      0.0%    
+cliente-por-email     969       114.7 ms      362.0 ms      443.1 ms      0.0%    
+pedidos-do-cliente    1386      180.3 ms      412.6 ms      512.5 ms      0.0%    
+pedidos-por-status    942       199.5 ms      421.1 ms      574.3 ms      0.0%    
+busca-produtos        955       210.2 ms      413.1 ms      514.7 ms      0.0%    
+vendas-por-dia        503       270.9 ms      491.6 ms      616.5 ms      0.0%    
+top-produtos          111       115.2 ms      297.6 ms      401.8 ms      0.0%    
