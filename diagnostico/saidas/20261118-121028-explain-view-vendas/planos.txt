@@ -1,0 +1,19 @@
+                                                               QUERY PLAN                                                               
+----------------------------------------------------------------------------------------------------------------------------------------
+ Sort  (cost=12.73..12.74 rows=7 width=58) (actual time=0.087..0.088 rows=7 loops=1)
+   Sort Key: dia
+   Sort Method: quicksort  Memory: 25kB
+   Buffers: shared hit=8 read=2
+   ->  Bitmap Heap Scan on mv_vendas_por_dia v  (cost=4.35..12.63 rows=7 width=58) (actual time=0.041..0.053 rows=7 loops=1)
+         Recheck Cond: ((dia >= '2024-02-27'::date) AND (dia <= '2024-03-04'::date))
+         Heap Blocks: exact=5
+         Buffers: shared hit=5 read=2
+         ->  Bitmap Index Scan on idx_mv_vendas_por_dia_dia  (cost=0.00..4.35 rows=7 width=0) (actual time=0.035..0.035 rows=7 loops=1)
+               Index Cond: ((dia >= '2024-02-27'::date) AND (dia <= '2024-03-04'::date))
+               Buffers: shared read=2
+ Planning:
+   Buffers: shared hit=75
+ Planning Time: 0.274 ms
+ Execution Time: 0.152 ms
+(15 rows)
+
