@@ -64,6 +64,7 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 | 13 | 4 | Tirar `p.observacoes` do SELECT de `vendas-por-dia` (o JS não usa a coluna) | Rodada 4 (`diagnostico/README.md`) | Aplicada e medida | mediana `vendas-por-dia`: 540,0 ms<br>p95 `vendas-por-dia`: 988,7 ms<br>p95 total: 698,6 ms<br>65,71 req/s | mediana `vendas-por-dia`: 386,8 ms<br>p95 `vendas-por-dia`: 737,8 ms<br>p95 total: 521,1 ms<br>87,66 req/s | `*-12-indice-email-clientes` | `*-13-vendas-sem-observacoes` | H13 confirmada: `vendas-por-dia` mediana −28,4%, p95 −25,4%; req/s +33,4%. Total: mediana −31,0%, p95 −25,4%, p99 −2,0%. CPU média da API 48,6% → 43,1% com mais requisições (0,74 → 0,49 pontos percentuais de CPU por req/s); CPU média do banco 64,1% → 93,0%, então o banco passou a ser o limite (inferência). O p95 e o p99 de `pedidos-por-status` pioraram (903,3 → 1129,1 ms e 1227,9 → 1640,5 ms), causa não investigada. Sem serviço novo |
 | 14 | 4 | Listagem de `pedidos` com junção adiada: subconsulta lê só `id` pelo índice `(status, criado_em DESC, id DESC)` e a consulta externa busca as 4 colunas da rota para os 20 `id`s; `VACUUM (ANALYZE) pedidos` em `banco/10-vacuum-pedidos.sql` | [Docs: Index-Only Scans and Covering Indexes](https://www.postgresql.org/docs/16/indexes-index-only-scans.html); Rodada 4 (`diagnostico/README.md`) | Aplicada e medida | mediana `pedidos-por-status`: 285,3 ms<br>p95 `pedidos-por-status`: 1129,1 ms<br>p99 `pedidos-por-status`: 1640,5 ms<br>87,66 req/s | mediana `pedidos-por-status`: 200,0 ms<br>p95 `pedidos-por-status`: 420,7 ms<br>p99 `pedidos-por-status`: 520,7 ms<br>107,34 req/s | `*-13-vendas-sem-observacoes` | `*-14-listagem-juncao-adiada` | H14 confirmada: `pedidos-por-status` mediana −29,9%, p95 −62,7%, p99 −68,3%; req/s +22,5%. Total: mediana −9,8%, p95 −21,9%, p99 −47,6%. Plano: Index Only Scan com `Heap Fetches: 0`; blocos lidos na página 500: 10.052 → 139 e na página 6000: 120.594 → 681 (`diagnostico/saidas/20261118-104954-explain-listagem-juncao-adiada/planos.txt` e `diagnostico/saidas/20261118-094652-coleta/10-explain-consultas.txt`). CPU média do banco 93,0% → 65,2%; da API 43,1% → 49,5% (cpu máx da API 51,7%), então a API voltou a ser o limite (inferência). Sem serviço novo; o `VACUUM` roda na criação do banco |
 | 15 | 4 | Agregar `vendas-por-dia` no SQL (`GROUP BY` por dia, `COUNT(DISTINCT)`, `SUM`) em vez de somar em JavaScript | Rodada 4 (`diagnostico/README.md`) | Aplicada e medida | 107,3 req/s | 131,0 req/s (+22.0%) | 20261118-104326-14-listagem-juncao-adiada, 20261118-104445-14-listagem-juncao-adiada, 20261118-104605-14-listagem-juncao-adiada | 20261118-105823-15-vendas-agregacao-sql, 20261118-105943-15-vendas-agregacao-sql, 20261118-110103-15-vendas-agregacao-sql | API cai de 49,5% para 11,2% de CPU; o banco vira o limite (98,8%). Contrato mantido. |
+| 16 | 4 | Índice GIN trigram (`pg_trgm`) em `produtos.nome` para a busca com `ILIKE` | Rodada 4 (`diagnostico/README.md`) | Aplicada e medida | 131,0 req/s | 169,6 req/s (+29.5%) | 20261118-105823-15-vendas-agregacao-sql, 20261118-105943-15-vendas-agregacao-sql, 20261118-110103-15-vendas-agregacao-sql | 20261118-110855-16-indice-trigram-produtos, 20261118-111014-16-indice-trigram-produtos, 20261118-111134-16-indice-trigram-produtos | Busca: mediana 202,0 → 96,8 ms; banco segue no limite (100,6%). Contrato mantido. |
 
 Status: `Aplicada e medida`, `Aplicada, sem ganho` ou `Pesquisada, teste futuro`. Ao medir, troque o status e preencha Depois (medianas das 3 execuções), a pasta e a conclusão.
 
@@ -532,6 +533,23 @@ O #15 parte do estado após o #14.
 - Inferência (CPU média do banco / req/s): custo de CPU do banco por requisição 6,1 → 7,5 ms.
 - A agregação passou a ser feita pelo banco. A CPU da API foi de 49,5% para 11,2% e o banco passou a ser o limite (CPU ~98,8%).
 - A coluna cpu_max da API ficou abaixo da média nesta rodada e não foi usada.
+- Contrato mantido nas 3 execuções.
+
+### Detalhe do #16 (mediana das 3 execuções, antes → depois)
+
+O #16 parte do estado após o #15.
+
+- req/s: 131,0 → 169,6 (+29.5%)
+- total: mediana 103,2 → 97,9 ms, p95 399,9 → 392,6 ms, p99 509,9 → 498,9 ms
+- vendas-por-dia: mediana 404,5 → 398,3 ms, p95 598,7 → 510,3 ms
+- busca-produtos: mediana 202,0 → 96,8 ms, p95 304,7 → 193,0 ms
+- cliente: mediana 95,9 → 92,4 ms
+- CPU média: API 11,2% → 14,7%, banco 98,8% → 100,6%
+- Memória máxima do banco: 497,1 → 498,2 MiB (limite 512 MiB; máximo das 3 execuções)
+- Inferência (CPU média do banco / req/s): custo de CPU do banco por requisição 7,5 → 5,9 ms.
+- Planos (EXPLAIN dos termos do contrato, em diagnostico/saidas/*-explain-busca-trigram): Bitmap Index Scan em idx_produtos_nome_trgm em todos, 0,2–3,5 ms. O índice ainda devolve 1000–2000 linhas por termo e o ORDER BY ... LIMIT 20 as ordena. O planejador estimou 2 linhas para "sem fio" e vieram 2000, mas manteve o índice.
+- O tamanho do ganho não foi decomposto por rota.
+- A coluna cpu_max da API ficou inconsistente com a média e não foi usada.
 - Contrato mantido nas 3 execuções.
 
 ## Hipóteses (escritas antes de aplicar)
