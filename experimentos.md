@@ -66,6 +66,7 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 | 15 | 4 | Agregar `vendas-por-dia` no SQL (`GROUP BY` por dia, `COUNT(DISTINCT)`, `SUM`) em vez de somar em JavaScript | Rodada 4 (`diagnostico/README.md`) | Aplicada e medida | 107,3 req/s | 131,0 req/s (+22.0%) | 20261118-104326-14-listagem-juncao-adiada, 20261118-104445-14-listagem-juncao-adiada, 20261118-104605-14-listagem-juncao-adiada | 20261118-105823-15-vendas-agregacao-sql, 20261118-105943-15-vendas-agregacao-sql, 20261118-110103-15-vendas-agregacao-sql | API cai de 49,5% para 11,2% de CPU; o banco vira o limite (98,8%). Contrato mantido. |
 | 16 | 4 | Índice GIN trigram (`pg_trgm`) em `produtos.nome` para a busca com `ILIKE` | Rodada 4 (`diagnostico/README.md`) | Aplicada e medida | 131,0 req/s | 169,6 req/s (+29.5%) | 20261118-105823-15-vendas-agregacao-sql, 20261118-105943-15-vendas-agregacao-sql, 20261118-110103-15-vendas-agregacao-sql | 20261118-110855-16-indice-trigram-produtos, 20261118-111014-16-indice-trigram-produtos, 20261118-111134-16-indice-trigram-produtos | Busca: mediana 202,0 → 96,8 ms; banco segue no limite (100,6%). Contrato mantido. |
 | 17 | 4 | Desligar o paralelismo de consultas no banco (`max_parallel_workers_per_gather = 0`) | Documentação do PostgreSQL 16: When Can Parallel Query Be Used?, How Parallel Query Works, Planner Cost Constants | Aplicada e medida | 169,6 req/s | 270,9 req/s (+59.8%) | 20261118-110855-16-indice-trigram-produtos, 20261118-111014-16-indice-trigram-produtos, 20261118-111134-16-indice-trigram-produtos | 20261118-115137-17-sem-paralelismo-banco, 20261118-115257-17-sem-paralelismo-banco, 20261118-115416-17-sem-paralelismo-banco | Sem workers, o banco gasta 3,7 ms de CPU por requisição (antes 5,9); as rotas leves caem para ~10,8 ms. Contrato mantido. |
+| 18 | 4 | View materializada `mv_vendas_por_dia` (uma linha por dia) para a rota `vendas-por-dia` | Documentação do PostgreSQL 16: Materialized Views, CREATE MATERIALIZED VIEW | Aplicada e medida | 270,9 req/s | 686,5 req/s (+153.4%) | 20261118-115137-17-sem-paralelismo-banco, 20261118-115257-17-sem-paralelismo-banco, 20261118-115416-17-sem-paralelismo-banco | 20261118-121030-18-view-vendas-por-dia, 20261118-121149-18-view-vendas-por-dia, 20261118-121308-18-view-vendas-por-dia | vendas-por-dia: mediana 290,7 → 11,7 ms; a API vira o limite (CPU 49,8%, banco 51,6%). Contrato mantido. |
 
 Status: `Aplicada e medida`, `Aplicada, sem ganho` ou `Pesquisada, teste futuro`. Ao medir, troque o status e preencha Depois (medianas das 3 execuções), a pasta e a conclusão.
 
@@ -567,6 +568,26 @@ O #17 parte do estado após o #16.
 - Inferência (CPU média do banco / req/s): custo de CPU do banco por requisição 5,9 → 3,7 ms.
 - O EXPLAIN isolado de vendas (banco ocioso, uma amostra por configuração) mostrou 37,8 ms de execução + 5,05 ms de planejamento com 2 workers e 32,4 ms + 0,88 ms sem workers. Sob carga o ganho foi muito maior. Explicação provável (inferência; CPU por processo não medida): os workers somavam CPU relevante num banco de 1 CPU, e as rotas leves esperavam atrás deles (a mediana de cliente caiu para ~10,8 ms).
 - Plano: com a configuração aplicada, o EXPLAIN de vendas não mostra Gather (diagnostico/saidas/*-explain-vendas-sem-paralelismo).
+- Contrato mantido nas 3 execuções.
+
+### Detalhe do #18 (mediana das 3 execuções, antes → depois)
+
+O #18 parte do estado após o #17.
+
+- req/s: 270,9 → 686,5 (+153.4%)
+- total: mediana 83,9 → 14,9 ms, p95 215,1 → 71,7 ms, p99 392,9 → 80,8 ms
+- vendas-por-dia: mediana 290,7 → 11,7 ms, p95 401,9 → 66,8 ms
+- busca-produtos: mediana 77,1 → 15,3 ms, p95 99,2 → 71,6 ms
+- cliente: mediana 10,8 → 11,5 ms
+- CPU média: API 21,2% → 49,8%, banco 99,5% → 51,6%
+- Memória máxima do banco: 510,3 → 468,0 MiB (limite 512 MiB; máximo das 3 execuções)
+- Inferência (CPU média do banco / req/s): custo de CPU do banco por requisição 3,7 → 0,8 ms.
+- req/s das 3 execuções: 753,1, 673,5, 686,5 (faixa 673,5–753,1).
+- A rota passou a ler `mv_vendas_por_dia` (731 linhas, uma por dia; mesmo JOIN interno e mesmo filtro `status <> 'cancelado'` da consulta anterior). A view foi comparada com a agregação direta em todos os dias (EXCEPT nos dois sentidos: 0 linhas).
+- Plano da rota na view: Bitmap Index Scan em idx_mv_vendas_por_dia_dia, execução 0,152 ms (diagnostico/saidas/*-explain-view-vendas).
+- A API passou a ser o limite: CPU média 49,8% (cota de 0,5 CPU) contra 51,6% do banco.
+- Custo: a rota reflete o último REFRESH da view (aqui, a criação do banco); a API só tem rotas GET.
+- A dispersão entre as execuções foi maior que nos experimentos anteriores; a causa não foi investigada.
 - Contrato mantido nas 3 execuções.
 
 ## Hipóteses (escritas antes de aplicar)
