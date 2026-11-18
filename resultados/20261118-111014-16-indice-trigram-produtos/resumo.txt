@@ -1,0 +1,17 @@
+Medição: 16-indice-trigram-produtos
+Carga: 20 usuários virtuais por 60s
+
+Requisições:        10294
+Requisições/s:      171.22
+Tempo de resposta:  mediana 97.9 ms | p95 392.6 ms | p99 498.9 ms
+Erros:              0.00%
+
+Por rota:
+rota                  req       mediana       p95           p99           erros   
+cliente               2556      92.4 ms       103.3 ms      193.9 ms      0.0%    
+cliente-por-email     1517      92.3 ms       104.4 ms      195.7 ms      0.0%    
+pedidos-do-cliente    2133      102.2 ms      200.0 ms      291.6 ms      0.0%    
+pedidos-por-status    1483      104.2 ms      202.7 ms      296.0 ms      0.0%    
+busca-produtos        1561      96.6 ms       190.6 ms      198.7 ms      0.0%    
+vendas-por-dia        852       398.3 ms      509.4 ms      604.7 ms      0.0%    
+top-produtos          192       92.5 ms       103.7 ms      191.8 ms      0.0%    
