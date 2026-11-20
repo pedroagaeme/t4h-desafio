@@ -1,6 +1,6 @@
 # Próximos testes
 
-Ideias pesquisadas que **não foram aplicadas** neste trabalho. As duas têm o status "Pesquisada, teste futuro". Nenhuma tem resultado medido, e nenhum número abaixo foi estimado por mim: o que aparece vem de uma medição já registrada em `experimentos.md` ou em `diagnostico/saidas/`, ou de uma fonte citada.
+Ideias pesquisadas que **não foram aplicadas** neste trabalho. As três têm o status "Pesquisada, teste futuro". Nenhuma tem resultado medido, e nenhum número abaixo foi estimado por mim: o que aparece vem de uma medição já registrada em `experimentos.md` ou em `diagnostico/saidas/`, ou de uma fonte citada.
 
 ## 1. Paginação por chave (seek method) em `GET /pedidos`
 
@@ -61,6 +61,35 @@ Ideias pesquisadas que **não foram aplicadas** neste trabalho. As duas têm o s
 
 **O que mudaria minha conclusão.** Se a vazão das demais rotas na API principal não subir de forma compatível com a fatia de tráfego que saiu, ou se a CPU e a memória do serviço novo anularem o ganho, a ideia não compensa. Se os relatórios virarem uma parte maior da carga ou passarem a exigir filtros que a view não cobre, ela passa a valer mais.
 
+## 3. Instruções preparadas nomeadas (reaproveitar o plano de consulta)
+
+**Status:** Pesquisada, teste futuro.
+
+**De onde veio.**
+- Documentação do PostgreSQL 16, ["PREPARE"](https://www.postgresql.org/docs/16/sql-prepare.html) e a visão ["pg_prepared_statements"](https://www.postgresql.org/docs/16/view-pg-prepared-statements.html). Fontes primárias.
+- Documentação do node-postgres, ["Queries"](https://node-postgres.com/features/queries), seção de instruções preparadas. Documentação do fabricante da biblioteca.
+
+**O que as fontes dizem.** Uma instrução preparada é analisada uma vez e, a cada execução, planejada e executada com os parâmetros recebidos. O ganho é maior quando planejar é caro (junções de várias tabelas) e menor quando a consulta é barata de planejar e cara de executar. No modo automático, o servidor usa planos personalizados nas primeiras cinco execuções e só adota o plano genérico se o custo estimado não for muito maior que a média dos personalizados; a configuração `plan_cache_mode` pode forçar um dos dois. No node-postgres, uma consulta com `name` vira uma instrução preparada: ela é analisada e planejada na primeira vez que cada conexão a executa, e as execuções seguintes nessa conexão enviam só o nome. A própria página avisa que a maioria das consultas não ganha muito e que a técnica serve sobretudo para consultas complexas e muito frequentes. A visão `pg_prepared_statements` mostra, por sessão, quantas vezes o servidor escolheu um plano genérico (`generic_plans`) ou personalizado (`custom_plans`).
+
+**Premissa medida aqui.** Depois do #18 a API é o limite (CPU média de 49,8% de uma cota de 0,5 CPU, contra 51,6% do banco), e `experimentos.md` registra o banco a 0,8 ms de CPU por requisição. Cada requisição hoje envia o texto da consulta, e o banco o analisa e o planeja de novo. Não medi quanto desse tempo é análise e planejamento, nem na API nem no banco.
+
+**O que eu acredito que ganharia.** Um ganho pequeno, porque as consultas das sete rotas são curtas e simples, e a fonte diz que o benefício é menor justamente para consultas baratas de planejar. Se existir, aparece na CPU da API e do banco por requisição, e não numa rota específica. Isso é uma expectativa minha, sem medição.
+
+**Risco.** O plano genérico pode ser pior que o personalizado quando a distribuição dos valores é desigual, como o `status` de `pedidos`. Antes de adotar, é preciso conferir em `pg_prepared_statements` se alguma consulta passou a usar plano genérico e comparar o `EXPLAIN` das duas formas.
+
+**Conflito com o contrato.** Nenhum esperado: o texto da consulta e os parâmetros são os mesmos, e o resultado não muda. O `verificar-contrato.sh comparar` confirmaria.
+
+**Como testaria.**
+1. Escrever a hipótese e commitar antes de mexer no código.
+2. Dar um `name` único a cada consulta em `api/src/db.js` (as consultas são fixas, sem texto montado por concatenação).
+3. Conferir em `pg_prepared_statements`, depois de uma carga curta, que nenhuma consulta passou a usar plano genérico e que o `EXPLAIN` não mudou.
+4. Rodar `verificar-contrato.sh comparar`.
+5. Medir três vezes com `medir.sh` e o mesmo rótulo, comparando a CPU da API e do banco por requisição.
+
+**O que precisaria.** Só uma mudança em `db.js`, e que cada conexão do pool guarde as instruções preparadas na memória do banco.
+
+**O que mudaria minha conclusão.** Se a diferença entre as três execuções ficar dentro do ruído medido entre repetições, ou se alguma consulta mudar de plano, a ideia é descartada.
+
 ## Referências
 
 1. Winand, M. *Use The Index, Luke: Paginação sem OFFSET.* https://use-the-index-luke.com/no-offset. Acesso em 20/11/2026.
@@ -68,3 +97,6 @@ Ideias pesquisadas que **não foram aplicadas** neste trabalho. As duas têm o s
 3. PostgreSQL 16. *Row Constructor Comparison.* https://www.postgresql.org/docs/16/functions-comparisons.html. Acesso em 20/11/2026.
 4. Stonebraker, M. et al. *C-Store: A Column-oriented DBMS.* VLDB 2005. https://dsl.cds.iisc.ac.in/~course/DBMS/papers/cstore.pdf. Acesso em 20/11/2026.
 5. PostgreSQL 16. *Materialized Views.* https://www.postgresql.org/docs/16/rules-materializedviews.html. Acesso em 20/11/2026.
+6. PostgreSQL 16. *PREPARE.* https://www.postgresql.org/docs/16/sql-prepare.html. Acesso em 20/11/2026.
+7. PostgreSQL 16. *pg_prepared_statements.* https://www.postgresql.org/docs/16/view-pg-prepared-statements.html. Acesso em 20/11/2026.
+8. node-postgres. *Queries.* https://node-postgres.com/features/queries. Acesso em 20/11/2026.
