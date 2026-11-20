@@ -1,0 +1,3 @@
+Timing is on.
+REFRESH MATERIALIZED VIEW
+Time: 1116.114 ms (00:01.116)

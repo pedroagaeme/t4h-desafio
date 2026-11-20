@@ -1,0 +1,6 @@
+data: 2026-11-20T15:39:22-03:00
+commit: 4bd953d (exp-01-indice-itens-pedido-custo)
+arquivos sem commit: 2
+indice: idx_itens_pedido_pedido_id em itens_pedido
+definicao: CREATE INDEX idx_itens_pedido_pedido_id ON public.itens_pedido USING btree (pedido_id)
+PostgreSQL 16.4 (Debian 16.4-1.pgdg120+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit

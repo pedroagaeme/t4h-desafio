@@ -1,0 +1,24 @@
+== repeticao 1
+BEGIN
+DROP INDEX
+Timing is on.
+CREATE INDEX
+Time: 290.840 ms
+Timing is off.
+ROLLBACK
+== repeticao 2
+BEGIN
+DROP INDEX
+Timing is on.
+CREATE INDEX
+Time: 285.864 ms
+Timing is off.
+ROLLBACK
+== repeticao 3
+BEGIN
+DROP INDEX
+Timing is on.
+CREATE INDEX
+Time: 305.360 ms
+Timing is off.
+ROLLBACK

@@ -1,0 +1,51 @@
+== repeticao 1
+BEGIN
+CREATE TABLE
+ALTER TABLE
+sem o indice
+Timing is on.
+INSERT 0 100000
+Time: 445.738 ms
+Timing is off.
+TRUNCATE TABLE
+CREATE INDEX
+com o indice
+Timing is on.
+INSERT 0 100000
+Time: 531.326 ms
+Timing is off.
+ROLLBACK
+== repeticao 2
+BEGIN
+CREATE TABLE
+ALTER TABLE
+sem o indice
+Timing is on.
+INSERT 0 100000
+Time: 356.526 ms
+Timing is off.
+TRUNCATE TABLE
+CREATE INDEX
+com o indice
+Timing is on.
+INSERT 0 100000
+Time: 493.866 ms
+Timing is off.
+ROLLBACK
+== repeticao 3
+BEGIN
+CREATE TABLE
+ALTER TABLE
+sem o indice
+Timing is on.
+INSERT 0 100000
+Time: 392.253 ms
+Timing is off.
+TRUNCATE TABLE
+CREATE INDEX
+com o indice
+Timing is on.
+INSERT 0 100000
+Time: 539.879 ms
+Timing is off.
+ROLLBACK

@@ -149,6 +149,8 @@ Para cada experimento: a hipótese completa no texto original, as pastas das 3 e
 Requisições por segundo: 3,32 → 5,45. Erros: 0,0% nas 3 execuções.
 O p95 de `pedidos-do-cliente` nas 3 execuções foi 11518,9, 10708,3 e 12513,5 ms, todos abaixo do menor valor da baseline (22017,4 ms).
 
+Custo (`diagnostico/saidas/20261120-153921-custo-indice-itens-pedido/`, commit `4bd953d`): índice de 22.003.712 bytes (21488 kB); `CREATE INDEX` em 695,4 ms (mediana de 3 repetições, de 637,6 a 748,8 ms); inserir 100.000 linhas levou 145,5 ms sem o índice e 215,7 ms com ele (mediana de 3 repetições; +70,2 ms, +48,2%). Medido com o banco já populado, em transações desfeitas, por `diagnostico/scripts/custo-indice.sh` (a cópia da tabela tem só a chave primária e recebe as linhas na ordem de `id`). Esta medição foi feita na branch `exp-01-indice-itens-pedido-custo`, com o banco no estado do #1.
+
 ### Detalhe do #2 (mediana das 3 execuções, antes → depois)
 
 *Hipótese completa, no texto original (escrita antes de aplicar):*
@@ -181,6 +183,8 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 |---|---|---|---|---|
 | banco | 100,3% | 99,9% | 398,9 | 466,5 |
 | api | 11,7% | 9,7% | 39,5 | 54,0 |
+
+Custo (`diagnostico/saidas/20261120-154132-custo-indice-pedidos-cliente/`, commit `592312a`): índice de 5.857.280 bytes (5720 kB); `CREATE INDEX` em 281,5 ms (mediana de 3 repetições, de 281,1 a 294,0 ms); inserir 100.000 linhas levou 295,3 ms sem o índice e 378,1 ms com ele (mediana de 3 repetições; +82,9 ms, +28,1%). Medido com o banco já populado, em transações desfeitas, por `diagnostico/scripts/custo-indice.sh` (a cópia da tabela tem só a chave primária e recebe as linhas na ordem de `id`).
 
 ### Detalhe do #3 (mediana das 3 execuções, antes → depois)
 
@@ -325,6 +329,8 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 
 A memória média da API caiu de 87,3 para 38,5 MiB com o `db.js` ainda usando `pg.Pool`; causa não investigada.
 
+Custo (`diagnostico/saidas/20261120-154137-custo-indice-pedidos-status/`, commit `592312a`): índice de 22.118.400 bytes (21600 kB); `CREATE INDEX` em 769,6 ms (mediana de 3 repetições, de 736,2 a 851,3 ms); inserir 100.000 linhas levou 285,4 ms sem o índice e 497,9 ms com ele (mediana de 3 repetições; +212,5 ms, +74,4%). Medido com o banco já populado, em transações desfeitas, por `diagnostico/scripts/custo-indice.sh` (a cópia da tabela tem só a chave primária e recebe as linhas na ordem de `id`).
+
 ### Detalhe do #7 (mediana das 3 execuções, antes → depois)
 
 *Hipótese completa, no texto original (escrita antes de aplicar):*
@@ -360,6 +366,8 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 |---|---|---|---|---|
 | banco | 99,8% → 98,5% | 99,7% → 99,8% | 424,6 → 413,2 | 483,4 → 449,0 |
 | api | 16,1% → 16,3% | 9,4% → 9,8% | 38,5 → 34,2 | 55,1 → 44,0 |
+
+Custo (`diagnostico/saidas/20261120-154144-custo-indice-pedidos-criado-em/`, commit `592312a`): índice de 11.255.808 bytes (10992 kB); `CREATE INDEX` em 290,8 ms (mediana de 3 repetições, de 285,9 a 305,4 ms); inserir 100.000 linhas levou 392,3 ms sem o índice e 531,3 ms com ele (mediana de 3 repetições; +139,1 ms, +35,5%). Medido com o banco já populado, em transações desfeitas, por `diagnostico/scripts/custo-indice.sh` (a cópia da tabela tem só a chave primária e recebe as linhas na ordem de `id`).
 
 ### Detalhe do #8 (mediana das 3 execuções, antes → depois)
 
@@ -679,6 +687,8 @@ O #16 parte do estado após o #15.
 - A coluna cpu_max da API ficou inconsistente com a média e não foi usada.
 - Contrato mantido nas 3 execuções.
 
+Custo (`diagnostico/saidas/20261120-154150-custo-indice-produtos-trigram/`, commit `592312a`): índice de 1.171.456 bytes (1144 kB); `CREATE INDEX` em 99,2 ms (mediana de 3 repetições, de 98,2 a 102,8 ms); inserir as 20.000 linhas da tabela levou 28,9 ms sem o índice e 225,9 ms com ele (mediana de 3 repetições; +197,1 ms, 7,8 vezes). Medido com o banco já populado, em transações desfeitas, por `diagnostico/scripts/custo-indice.sh` (a cópia da tabela tem só a chave primária e recebe as linhas na ordem de `id`).
+
 ### Detalhe do #17 (mediana das 3 execuções, antes → depois)
 
 *Hipótese completa, no texto original (escrita antes de aplicar):*
@@ -722,3 +732,5 @@ O #18 parte do estado após o #17.
 - Custo: a rota reflete o último REFRESH da view (aqui, a criação do banco); a API só tem rotas GET.
 - A dispersão entre as execuções foi maior que nos experimentos anteriores; a causa não foi investigada.
 - Contrato mantido nas 3 execuções.
+
+Custo da view (`diagnostico/saidas/20261120-154205-view-vendas-por-dia/`, commit `592312a`): `pg_total_relation_size('mv_vendas_por_dia')` = 104 kB, somando a view e o índice; `REFRESH MATERIALIZED VIEW mv_vendas_por_dia` levou 1116,114 ms (uma medição).

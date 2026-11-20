@@ -1,0 +1,6 @@
+data: 2026-11-20T15:41:44-03:00
+commit: 592312a (main)
+arquivos sem commit: 4
+indice: idx_pedidos_criado_em em pedidos
+definicao: CREATE INDEX idx_pedidos_criado_em ON public.pedidos USING btree (criado_em)
+PostgreSQL 16.4 (Debian 16.4-1.pgdg120+2) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14) 12.2.0, 64-bit
