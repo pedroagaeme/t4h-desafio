@@ -70,7 +70,70 @@ Rodada = rodada de diagnóstico (`diagnostico/README.md`) que motivou a ideia. P
 
 Status: `Aplicada e medida`, `Aplicada, sem ganho` ou `Pesquisada, teste futuro`. Ao medir, troque o status e preencha Depois (medianas das 3 execuções), a pasta e a conclusão.
 
+## Hipóteses (resumo)
+
+Resumo de cada hipótese: o que muda, o efeito esperado e o porquê em poucas linhas. O texto completo de cada uma, como foi escrito antes de aplicar, está no início do detalhe do experimento correspondente, no final deste arquivo.
+
+**H1 (#1).** Criar um índice em `itens_pedido(pedido_id)` deve reduzir o p95 da rota `pedidos-do-cliente`, porque, segundo a Rodada 1, as consultas de itens dessa rota leem a tabela inteira (varredura sequencial) para devolver poucas linhas.
+
+**H2 (#2).** Criar um índice em `pedidos(cliente_id)` deve reduzir o p95 da rota `pedidos-do-cliente` sobre o estado após o #1, porque, segundo a Rodada 1, a consulta de pedidos do cliente também lê a tabela inteira para devolver poucas linhas.
+
+**H3 (#3).** Trocar a conexão por consulta (`db.js`) por um `pg.Pool` deve reduzir a mediana, o p95 e o p99 gerais sobre o estado após o #2, porque abrir uma conexão leva tempo e hoje cada consulta abre a sua.
+
+**H4 (#4).** Colocar o PgBouncer entre a API e o banco, mantendo a API sem pool, deve reduzir a mediana, o p95 e o p99 gerais sobre o estado após o #2, pelo mesmo motivo do H3: o custo vem de abrir conexões ao banco saturado, e o PgBouncer as reaproveita. O custo do contêiner novo entra na comparação.
+
+**H5 (#5).** Colocar o Pgpool-II entre a API e o banco, mantendo a API sem pool, deve reduzir a mediana, o p95 e o p99 gerais sobre o estado após o #2, pelo mesmo motivo do H3, porque o Pgpool-II lista pool de conexões entre as suas funções. O custo do contêiner novo entra na comparação.
+
+**H6 (#6).** Criar um índice em `pedidos(status, criado_em DESC, id DESC)` deve reduzir a mediana, o p95 e o p99 gerais sobre o estado após o #3, porque, segundo a Rodada 2, a listagem de `pedidos-por-status` pesa muito no banco e ordena centenas de milhares de linhas em disco; um índice na mesma ordem do `ORDER BY` entrega as linhas já ordenadas ([Docs 11.4](https://www.postgresql.org/docs/16/indexes-ordering.html); [Use The Index, Luke](https://use-the-index-luke.com/sql/sorting-grouping/indexed-order-by)).
+
+**H7 (#7).** Criar um índice em `pedidos(criado_em)` e trocar o filtro de `vendas-por-dia` por uma condição de intervalo deve reduzir a mediana, o p95 e o p99 da rota sobre o estado após o #6, porque, segundo a Rodada 2, o filtro com conversão sobre a coluna impede o uso de índice e o plano lê a tabela inteira; uma condição de intervalo permite usá-lo ([Winand](https://use-the-index-luke.com/sql/where-clause/obfuscation/dates)). A reescrita deve devolver os mesmos pedidos, o que é conferido por consulta antes de medir.
+
+**H8 (#8).** Criar a view materializada `mv_top_produtos`, com índice na ordem do `ORDER BY`, e trocar `top-produtos` para lê-la deve reduzir a mediana, o p95 e o p99 da rota sobre o estado após o #7, porque, segundo a Rodada 2, a rota recalcula a cada requisição as somas de todos os produtos juntando mais de um milhão de linhas, e a view guarda esse resultado pronto ([Docs 41.3](https://www.postgresql.org/docs/16/rules-materializedviews.html)). A view só reflete os dados até o último `REFRESH`; como nenhuma rota altera `itens_pedido` nem `pedidos`, ela não fica defasada. O custo (tamanho e tempo de criação) entra na comparação, e a saída deve ficar idêntica (conferida por `comparar`).
+
+**H9 (#9).** Trocar, em `pedidos-do-cliente`, as consultas de itens (uma por pedido) e de produto (uma por item) por uma única junção, com o agrupamento feito em JavaScript, deve reduzir a mediana, o p95 e o p99 da rota sobre o estado após o #8, porque, segundo as Rodadas 1 e 3, a rota dispara muitas consultas em sequência, todas baratas no banco, e o custo vem do número de idas e voltas, o problema N+1 que Winand corrige com junção ([Winand](https://use-the-index-luke.com/sql/join/nested-loops-join-n1-problem)). Ficam 2 consultas por requisição, e a resposta deve ficar idêntica (conferida por `comparar`).
+
+**H10 (#10).** Criar a view materializada `mv_pedidos_por_status` e trocar o `count(*)` de `pedidos-por-status` pela leitura dela deve reduzir a mediana, o p95 e o p99 da rota sobre o estado após o #9, porque, segundo a Rodada 3, o `count(*)` é uma parte grande do tempo do banco e precisa verificar a visibilidade das linhas ([Wiki: Slow Counting](https://wiki.postgresql.org/wiki/Slow_Counting)), enquanto a view guarda o resultado pronto ([Docs 41.3](https://www.postgresql.org/docs/16/rules-materializedviews.html)). A view só reflete o último `REFRESH`; nenhuma rota altera `pedidos`. O custo entra na comparação, e a saída deve ficar idêntica.
+
+**H11 (#11).** Trocar a consulta de `vendas-por-dia`, que devolve uma linha por item e agrupa em JavaScript, por uma que agrupa por dia no banco e não traz a coluna `observacoes`, deve reduzir a mediana, o p95 e o p99 da rota sobre o estado após o #10, porque, segundo a Rodada 3, a rota pesa muito na CPU da API, que recebe milhares de linhas para devolver poucos dias. A coluna `observacoes` não entra no cálculo nem na resposta. Os resultados numéricos chegam como texto e são convertidos com `Number()` para manter os mesmos números. A resposta deve ficar idêntica (conferida por `comparar`).
+
+**H11, retestada (#11).** A primeira medição, sobre o estado do #9 com uma view sem uso, não confirmou a H11: o banco estava saturado e a agregação passou para ele. A ideia é refeita sobre o estado após o #10 corrigido, em que a API passou a ser o recurso mais limitante e o banco tem alguma folga: agrupar no banco deve reduzir a mediana, o p95 e o p99 da rota. Se o banco seguir sendo o limite, o resultado deve repetir a piora da primeira tentativa.
+
+**H12 (#12).** Criar um índice em `clientes (lower(email))` deve reduzir a mediana, o p95 e o p99 de `cliente-por-email` sobre o estado após o #10, porque, segundo a Rodada 3, o plano lê `clientes` inteira para devolver 1 linha e a consulta pesa muito no banco; uma consulta que filtra pela mesma expressão pode usar um índice sobre ela ([Docs 11.7](https://www.postgresql.org/docs/16/indexes-expressional.html)). Nenhuma rota altera `clientes`, então o custo de manter o índice não aparece na carga. O custo (tamanho e tempo de criação) entra na comparação, e a saída deve ficar idêntica.
+
+**H13 (#13).** Tirar `p.observacoes` do SELECT de `vendas-por-dia` deve aumentar o req/s geral e reduzir a mediana e o p95 da rota, sobre o estado após o #12, porque, segundo a Rodada 4, a API está no limite da cota de CPU, essa rota responde pela maior parte dela e cada chamada traz milhares de linhas com uma coluna grande que o JS não usa. Se a CPU da API por chamada não cair de forma mensurável, ou o req/s ficar dentro da variação entre execuções idênticas, o custo está na conversão e no laço por linha, e o caminho passa a ser o #14. Sem serviço novo.
+
+**H14 (#14).** Buscar os 20 `id`s da página numa subconsulta que lê só o índice `(status, criado_em DESC, id DESC)`, trazendo as colunas da rota só para esses 20, com `VACUUM (ANALYZE) pedidos`, deve reduzir os blocos lidos por chamada de `/pedidos`, a CPU do banco e o p95 e o p99 de `pedidos-por-status`, sobre o estado após o #13, porque, segundo a Rodada 4, cada linha pulada pelo `OFFSET` custa um acesso ao heap e o mapa de visibilidade vazio impede o Index Only Scan, e o banco virou o limite no #13. Se o plano novo não for Index Only Scan, ou mostrar muitos `Heap Fetches`, a hipótese cai. Sem serviço novo.
+
+**H15 (#15).** Premissa (medida no #14): a API está no limite da cota e o banco tem folga; `vendas-por-dia` gasta muita CPU da API porque o Node recebe milhares de linhas por chamada e as agrega em JS. Agregar no SQL (`GROUP BY` por dia) reduz as linhas ao número de dias do intervalo. Previsão: a CPU da API por requisição cai, a vazão aumenta e o banco volta a ser o limite. Refuta se: o req/s subir menos que o ruído observado (até ~15% numa comparação A/A anterior) ou o contrato mudar. Cuidado: o dia deve sair igual ao do JS atual (UTC).
+
+**H16 (#16).** Premissa (medida no #15): o banco é o limite e `busca-produtos` é a rota leve mais lenta, porque, na rodada 4, o `ILIKE` lia as 20 mil linhas de `produtos` (Seq Scan). Um índice GIN com `gin_trgm_ops` em `produtos.nome` (`pg_trgm`, `banco/11-...sql`) permite Bitmap Index Scan sem mudar a consulta nem o resultado (termos de 3 caracteres ou mais). Previsão: o custo de CPU do banco por busca cai e o req/s sobe. Refuta se: o `EXPLAIN` dos termos do contrato mostrar Seq Scan, o req/s subir menos que o ruído observado ou o contrato mudar. Risco: termos muito frequentes podem levar o planejador ao Seq Scan.
+
+**H17 (#17).** Premissa (medida): o banco está no limite de CPU e só a consulta de `vendas-por-dia` tem plano paralelo; no `EXPLAIN`, o plano com 2 workers foi estimado mais barato e foi mais lento que o serial (uma amostra por configuração). Segundo a documentação do PostgreSQL 16, com `max_parallel_workers_per_gather = 0` nenhum plano paralelo é gerado ([When Can Parallel Query Be Used?](https://www.postgresql.org/docs/16/when-can-parallel-query-be-used.html)), e coordenar workers tem custo próprio ([How Parallel Query Works](https://access.crunchydata.com/documentation/postgresql16/16.6/how-parallel-query-works.html); [Planner Cost Constants](https://www.postgresql.org/docs/16/runtime-config-query.html)). Hipótese (não vem da documentação): com 1 CPU e outras rotas disputando o núcleo, os workers não trazem ganho e consomem CPU. Mudança: `banco/12-sem-paralelismo.sql`. Previsão: plano serial no `EXPLAIN`, menor CPU do banco por requisição e mais req/s. Refuta se: o req/s subir menos que o ruído, o `EXPLAIN` ainda mostrar `Gather`, o contrato mudar ou outra rota piorar. Risco: a amostragem de `pg_stat_activity` sob carga ainda não confirmou que só essa consulta usa workers.
+
+**H18 (#18).** Premissa (medida): o banco segue no limite de CPU, `vendas-por-dia` é a rota mais lenta e os dados não mudam durante a carga (as rotas são só GET). Segundo a documentação do PostgreSQL 16, uma view materializada guarda o resultado da consulta como uma tabela e reflete o último `REFRESH` ([Materialized Views](https://www.postgresql.org/docs/16/rules-materializedviews.html); [CREATE MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-creatematerializedview.html)). Mudança: `mv_vendas_por_dia` (uma linha por dia, mesmo `JOIN` e filtro da consulta atual) em `banco/13-view-vendas-por-dia.sql`, com índice único em `dia`, e a rota lê o intervalo da view. Previsão: o custo de CPU do banco por chamada cai, a mediana da rota cai e o req/s sobe. Custo: a rota reflete o último `REFRESH` (aqui, a criação do banco); com escrita, seria preciso definir quando atualizar. Refuta se: o req/s subir menos que o ruído, o contrato mudar (bordas do intervalo, pedidos sem item, cancelados, tipos numéricos) ou o plano não usar a view.
+
+Estado de partida de cada experimento:
+
+- Os #3, #4 e #5 são testados separadamente, cada um sobre o estado após o #2 e sem os outros dois aplicados.
+- O #6 parte do estado após o #3 (o `pg.Pool`, adotado entre os três por melhorar as métricas sem contêiner novo).
+- O #7 parte do estado após o #6.
+- O #8 parte do estado após o #7.
+- O #9 parte do estado após o #8.
+- O #10 parte do estado após o #9.
+- O #11 parte do estado após o #10.
+- O #12 parte do estado após o #10 (o #11 não foi adotado).
+- O #13 parte do estado após o #12.
+- O #14 parte do estado após o #13.
+
+## Detalhes por experimento
+
+Para cada experimento: a hipótese completa no texto original, as pastas das 3 execuções, as tabelas por rota e o uso de recursos.
+
 ### Detalhe do #1 (mediana das 3 execuções, antes → depois)
+
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H1 (#1).** Criar um índice em `itens_pedido(pedido_id)` deve reduzir o p95 da rota `pedidos-do-cliente`, porque, segundo a Rodada 1, cada uma das 5 consultas por requisição hoje lê a tabela inteira (varredura sequencial) e descarta 499999 linhas para devolver 2.
 
 | rota | req | mediana (ms) | p95 (ms) | p99 (ms) |
 |---|---|---|---|---|
@@ -87,6 +150,10 @@ Requisições por segundo: 3,32 → 5,45. Erros: 0,0% nas 3 execuções.
 O p95 de `pedidos-do-cliente` nas 3 execuções foi 11518,9, 10708,3 e 12513,5 ms, todos abaixo do menor valor da baseline (22017,4 ms).
 
 ### Detalhe do #2 (mediana das 3 execuções, antes → depois)
+
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H2 (#2).** Criar um índice em `pedidos(cliente_id)` deve reduzir o p95 da rota `pedidos-do-cliente` sobre o estado após o #1, porque, segundo a Rodada 1, a consulta hoje lê a tabela inteira (varredura sequencial) e descarta 166665 linhas por processo para devolver 5.
 
 Rótulo `02-indice-pedidos-cliente`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), commit `182842e`, 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções.
 
@@ -117,6 +184,10 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 
 ### Detalhe do #3 (mediana das 3 execuções, antes → depois)
 
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H3 (#3).** Trocar a conexão por consulta (`db.js`) por um `pg.Pool` deve reduzir a mediana, o p95 e o p99 gerais sobre o estado após o #2, porque criar uma conexão leva tempo e hoje cada consulta cria a sua.
+
 Rótulo `03-pool-api`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), commit `ac59284`, 0 arquivos sem commit.
 
 - `resultados/20261116-110453-03-pool-api`
@@ -145,6 +216,10 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 | api | 11,7% → 11,0% | 9,7% → 9,9% | 39,5 → 87,3 | 54,0 → 96,6 |
 
 ### Detalhe do #4 (mediana das 3 execuções, antes → depois)
+
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H4 (#4).** Colocar o PgBouncer entre a API e o banco, mantendo a API sem pool, deve reduzir a mediana, o p95 e o p99 gerais sobre o estado após o #2, pelo mesmo motivo do H3: o custo vem de abrir conexões ao banco, que está saturado, e o PgBouncer é um pooler de conexões que reaproveita as conexões ao servidor. O custo do contêiner novo (CPU e memória em `recursos.txt`) entra na comparação.
 
 Rótulo `04-pgbouncer`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Configuração: imagem `edoburu/pgbouncer:v1.26.1-p0`, `pool_mode = transaction`, `default_pool_size = 10`, limites do contêiner de 0,25 CPU e 64 MB; a API sem pool, apontando para o PgBouncer.
 
@@ -175,6 +250,10 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 | api | 11,7% → 14,5% | 9,7% → 9,6% | 39,5 → 37,5 | 54,0 → 45,5 |
 
 ### Detalhe do #5 (mediana das 3 execuções, antes → depois)
+
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H5 (#5).** Colocar o Pgpool-II entre a API e o banco, mantendo a API sem pool, deve reduzir a mediana, o p95 e o p99 gerais sobre o estado após o #2, pelo mesmo motivo do H3, porque o Pgpool-II lista pool de conexões entre as suas funções. O custo do contêiner novo (CPU e memória em `recursos.txt`) entra na comparação.
 
 Rótulo `05-pgpool`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), commit `57da491`, 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Configuração: imagem `pgpool/pgpool:latest` (Pgpool-II 4.4.2, criada em 2023-03-03, `sha256:3782cbf9…`), configurada por variáveis `PGPOOL_PARAMS_*` (backend `banco:5432`, escuta em `*:9999`, `connection_cache = on`), limites do contêiner de 0,25 CPU e 256 MB, e `enable_shared_relcache = off`. A API sem pool, apontando para o Pgpool-II.
 
@@ -211,6 +290,10 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 
 ### Detalhe do #6 (mediana das 3 execuções, antes → depois)
 
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H6 (#6).** Criar um índice em `pedidos(status, criado_em DESC, id DESC)` deve reduzir a mediana, o p95 e o p99 gerais sobre o estado após o #3, porque, segundo a Rodada 2, `pedidos-por-status` é 45,6% da CPU do banco no mix do k6 e a lista lê `pedidos` inteira e, na página 1000, ordena ~300.000 linhas em arquivo temporário no disco, e um índice na mesma ordem do `ORDER BY` entrega as linhas já ordenadas e dispensa essa ordenação ([Docs 11.4](https://www.postgresql.org/docs/16/indexes-ordering.html)), o que Winand chama de *pipelined order by* ([Use The Index, Luke](https://use-the-index-luke.com/sql/sorting-grouping/indexed-order-by)).
+
 Rótulo `06-indice-pedidos-status`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), commit `37e770e`, 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Mudança: `banco/05-indice-pedidos-status.sql`, com `CREATE INDEX idx_pedidos_status_criado_em_id ON pedidos (status, criado_em DESC, id DESC)`. Estado de comparação: o #3 (`pg.Pool`).
 
 `EXPLAIN (ANALYZE, BUFFERS)` da listagem com `status = 'pago'`, `ORDER BY criado_em DESC, id DESC`, `LIMIT 20`: página 1 (`OFFSET 0`) e página 1000 (`OFFSET 19980`) usam `Index Scan using idx_pedidos_status_criado_em_id`, sem etapa `Sort`, com 0,385 ms e 33,560 ms de execução.
@@ -244,6 +327,10 @@ A memória média da API caiu de 87,3 para 38,5 MiB com o `db.js` ainda usando `
 
 ### Detalhe do #7 (mediana das 3 execuções, antes → depois)
 
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H7 (#7).** Criar um índice em `pedidos(criado_em)` e trocar o filtro de `vendas-por-dia`, de `criado_em::date BETWEEN $1 AND $2` para o intervalo `criado_em >= $1::date AND criado_em < $2::date + 1`, deve reduzir a mediana, o p95 e o p99 da rota `vendas-por-dia` sobre o estado após o #6, porque, segundo a Rodada 2, a rota gasta 185,0 ms de CPU do banco por requisição (11,9% da CPU do banco no mix do k6) e o plano lê `pedidos` inteira (~500.000 linhas, descartando ~495.700) para devolver ~4.300, já que o filtro com conversão sobre a coluna impede o uso de um índice sobre ela, e uma condição de intervalo permite usá-lo ([Winand](https://use-the-index-luke.com/sql/where-clause/obfuscation/dates)). Como `criado_em` é `timestamp without time zone`, a reescrita deve devolver os mesmos pedidos; isso é conferido por consulta antes de medir.
+
 Rótulo `07-indice-pedidos-criado-em`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Mudança, em um só commit: `banco/06-indice-pedidos-criado-em.sql` (`CREATE INDEX idx_pedidos_criado_em ON pedidos (criado_em)`) e, em `api/src/rotas.js`, o filtro de `vendas-por-dia` de `p.criado_em::date BETWEEN $1 AND $2` para `p.criado_em >= $1::date AND p.criado_em < $2::date + 1`. Estado de comparação: o #6.
 
 Conferência antes de medir: para 2024-03-01 a 2024-03-07, `criado_em::date BETWEEN` e o intervalo contaram os mesmos 4793 pedidos. O `EXPLAIN (ANALYZE, BUFFERS)` da consulta nova usa `Bitmap Index Scan on idx_pedidos_criado_em` e `Parallel Bitmap Heap Scan on pedidos` (descarta 159 linhas por processo, contra 165228 da leitura sequencial anterior), com 37,7 ms de execução em uma chamada, contra 102,8 ms no plano anterior; são execuções únicas, com estado de cache diferente.
@@ -275,6 +362,10 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 | api | 16,1% → 16,3% | 9,4% → 9,8% | 38,5 → 34,2 | 55,1 → 44,0 |
 
 ### Detalhe do #8 (mediana das 3 execuções, antes → depois)
+
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H8 (#8).** Criar a view materializada `mv_top_produtos`, com a soma de `quantidade` e de `quantidade * preco_unitario_centavos` por produto sobre os pedidos não cancelados, e um índice nela em `(receita_centavos DESC, id)`, e trocar a consulta de `top-produtos` para ler a view, deve reduzir a mediana, o p95 e o p99 da rota `top-produtos` sobre o estado após o #7, porque, segundo a Rodada 2, a rota gasta 1056,2 ms de CPU do banco por requisição (17,0% da CPU do banco no mix do k6, com 2 de 100 pontos de peso) e o plano lê e junta cerca de 1,35 milhão de linhas a cada requisição para calcular as somas de 19.206 produtos e devolver 10 (duração real do plano: 1287,6 e 1329,5 ms), e uma view materializada guarda esse resultado já calculado, de modo que ler dela costuma ser bem mais rápido que consultar as tabelas de origem ([Docs 41.3](https://www.postgresql.org/docs/16/rules-materializedviews.html)); o índice na mesma ordem do `ORDER BY` entrega as linhas já ordenadas ([Docs 11.4](https://www.postgresql.org/docs/16/indexes-ordering.html)). A view só reflete os dados até o último `REFRESH` ([REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-refreshmaterializedview.html)); como nenhuma rota da API altera `itens_pedido` nem `pedidos`, a view criada depois da carga não fica defasada. O custo (tamanho da view e tempo de criação) entra na comparação. A saída deve ficar idêntica; isso é conferido por `comparar` antes de medir.
 
 Rótulo `08-view-top-produtos`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Mudança, em um só commit: `banco/07-view-top-produtos.sql` (`CREATE MATERIALIZED VIEW mv_top_produtos` com as somas por produto dos pedidos não cancelados, índice `(receita_centavos DESC, id)` e `ANALYZE`) e, em `api/src/rotas.js`, a consulta de `top-produtos` passa a ler a view. Estado de comparação: o #7.
 
@@ -310,6 +401,10 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 
 ### Detalhe do #9 (mediana das 3 execuções, antes → depois)
 
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H9 (#9).** Trocar, na rota `pedidos-do-cliente`, as consultas de itens (uma por pedido) e de produto (uma por item) por uma única junção `pedidos LEFT JOIN itens_pedido LEFT JOIN produtos`, com o agrupamento por pedido feito em JavaScript, deve reduzir a mediana, o p95 e o p99 da rota `pedidos-do-cliente` sobre o estado após o #8, porque, segundo a Rodada 1, uma requisição dessa rota dispara 17 consultas em sequência (1 de cliente, 1 de pedidos, 5 de itens e 10 de produtos) e, segundo a Rodada 3, essas consultas são baratas no banco e a rota é cara fora delas: sozinha, as 17 consultas somam 0,2 a 0,3 ms no banco e a requisição leva 9,2 ms; no `pg_stat_statements` sob carga as três consultas por pedido somam cerca de 0,6% do tempo do banco; a CPU por requisição é de 3,42 a 3,62 ms no banco e de 10,24 a 11,41 ms na API; e, sob carga, a mediana da rota é de 1200,7 ms. Isso é compatível com um custo que vem do número de idas e voltas ao banco, e não do trabalho de cada consulta. Winand descreve esse padrão como o problema N+1 e aponta a junção no banco como correção, porque cada comando extra é uma ida e volta ao banco e o número de idas e voltas pesa mais no tempo de resposta do que o volume de dados ([Winand](https://use-the-index-luke.com/sql/join/nested-loops-join-n1-problem)). Ficam 2 consultas por requisição (a do cliente e a junção). A resposta deve ficar idêntica: pedidos por `criado_em DESC, id DESC`, itens por `id`, e pedido sem itens com `itens: []` e `total_centavos: 0`; isso é conferido por `comparar` antes de medir.
+
 Rótulo `09-juncao-pedidos-do-cliente`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42). Contrato mantido (42 respostas iguais) nas 3 execuções. Mudança, em um só commit: em `api/src/rotas.js`, a rota `GET /clientes/:id/pedidos` passa a usar uma consulta `pedidos LEFT JOIN itens_pedido LEFT JOIN produtos`, ordenada por `p.criado_em DESC, p.id DESC, i.id`, e o agrupamento por pedido é feito em JavaScript; a consulta do cliente (para o 404) fica como estava. Limite da verificação: para essa rota o contrato cobre 4 clientes (7, 42, 31337 e 99999, todos com 5 pedidos e nenhum pedido sem itens) e 1 caso de 404 (100001); não cobre `id` inválido nem pedido sem itens.
 
 - `resultados/20261117-092959-09-juncao-pedidos-do-cliente`
@@ -343,6 +438,10 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 | api | 38,9% → 38,3% | 50,4% → 50,2% | 40,6 → 41,4 | 49,4 → 59,3 |
 
 ### Detalhe do #10 (mediana das 3 execuções, antes → depois)
+
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H10 (#10).** Criar a view materializada `mv_pedidos_por_status`, com `status` e a contagem de pedidos por status, e trocar o `SELECT count(*) FROM pedidos WHERE status = $1` de `pedidos-por-status` pela leitura dela deve reduzir a mediana, o p95 e o p99 da rota `pedidos-por-status` sobre o estado após o #9, porque, segundo a Rodada 3, o `count(*)` é 15,2% do tempo do banco (95,1 ms por chamada sob carga) e, para `pago`, o plano percorre 300.000 entradas de índice em 2 processos extras (19,4 ms, 1484 buffers), e a CPU do banco por requisição é de 43,45 a 51,34 ms com `pago` contra 13,47 a 15,62 ms com `entregue` na página 500. No PostgreSQL, `count(*)` precisa verificar a visibilidade das linhas ([Wiki: Slow Counting](https://wiki.postgresql.org/wiki/Slow_Counting)), enquanto uma view materializada guarda o resultado já calculado ([Docs 41.3](https://www.postgresql.org/docs/16/rules-materializedviews.html)). A view só reflete os dados até o último `REFRESH` ([REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-refreshmaterializedview.html)); como nenhuma rota da API altera `pedidos`, a view criada depois da carga não fica defasada. Os quatro status válidos têm pedidos (300.000, 125.000, 50.000 e 25.000), então todos aparecem na view. O custo (tamanho da view e tempo de criação) entra na comparação. A saída deve ficar idêntica; isso é conferido por `comparar` antes de medir.
 
 Rótulo `10-view-contagem-status`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Mudança: `banco/08-view-contagem-status.sql` (`CREATE MATERIALIZED VIEW mv_pedidos_por_status` com a contagem de pedidos por status) e, em um commit `perf` separado, `api/src/rotas.js`, em que a rota `GET /pedidos` passa a ler `total` da view no lugar de `count(*)` sobre `pedidos`; a listagem com `LIMIT` e `OFFSET` não mudou. O banco foi recriado (`docker compose down -v`) antes das medições.
 
@@ -384,6 +483,12 @@ Nota de método: a primeira tentativa do #10 (`resultados/20261117-100339-…`, 
 
 ### Detalhe do #11 (mediana das 3 execuções, antes → depois)
 
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H11 (#11).** Trocar a consulta de `vendas-por-dia`, que devolve uma linha por item e agrupa por dia em JavaScript, por uma consulta que agrupa por dia no banco (`GROUP BY` do dia de `criado_em`, `count(DISTINCT p.id)`, `sum(i.quantidade)` e `sum(i.quantidade * i.preco_unitario_centavos)`) e não traz a coluna `observacoes`, deve reduzir a mediana, o p95 e o p99 da rota `vendas-por-dia` sobre o estado após o #10, porque, segundo a Rodada 3, a rota gasta 78,1 a 84,1 ms de CPU da API por requisição (contra 38,2 a 40,6 ms do banco), o plano devolve 12.951 linhas de 296 bytes para a API (a consulta leva 7,6 ms no banco desde o #7) e a rota responde por cerca de 60% da CPU da API no mix (estimativa: peso 8 × 78,1 a 84,1 ms, em ~10,7 ms por requisição do mix), enquanto a resposta final tem só uma linha por dia (até 7). A coluna `observacoes` só aparece no `SELECT` dessa rota (`api/src/rotas.js`): não entra no cálculo nem na resposta, e o `base.json` do contrato não a contém. Os resultados de `sum` e `count` têm tipo `bigint` ou `numeric` no PostgreSQL ([Docs 9.21](https://www.postgresql.org/docs/16/functions-aggregate.html)), que o driver entrega como texto; a rota converte esses campos com `Number()` para manter os mesmos números, e o produto `quantidade * preço` é calculado em `bigint` para não estourar o `integer`. A resposta deve ficar idêntica (dias em ordem crescente, só dias com pedidos não cancelados); isso é conferido por `comparar` antes de medir.
+
+**H11, retestada (#11).** A primeira medição desta ideia, feita sobre o estado do #9 com uma view sem uso no banco, não confirmou a H11: a CPU do banco estava perto de 96% e a agregação passou para ele. A ideia é refeita sobre o estado após o #10 corrigido, em que a CPU média do banco é 85,9% (antes 92,1%) e a da API é 43,9% de 1 CPU, cerca de 88% da quota de 0,5 CPU (antes 38,3%, cerca de 77%). Agrupar `vendas-por-dia` no banco deve reduzir a mediana, o p95 e o p99 da rota, porque, se a API passou a ser o recurso mais limitante e o banco tem alguma folga, trocar o laço em JavaScript sobre 12.951 linhas (CPU da API de 78 a 84 ms por requisição na Rodada 3) por uma agregação no banco tira trabalho do recurso mais saturado. Se o banco seguir sendo o limite, o resultado deve repetir a piora da primeira tentativa.
+
 Rótulo `11-agregacao-vendas-por-dia`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Mudança, em um só commit (`perf`, na branch `exp-11-agregacao-vendas-por-dia-refeito`): em `api/src/rotas.js`, a consulta de `vendas-por-dia` passa a agrupar por dia no banco (`to_char(p.criado_em::date, 'YYYY-MM-DD')`, `count(DISTINCT p.id)`, `sum(i.quantidade)` e `sum(i.quantidade::bigint * i.preco_unitario_centavos)`), com o mesmo filtro da versão anterior e sem a coluna `observacoes`; a rota converte os resultados com `Number()` e deixa de agrupar em JavaScript. O banco foi recriado (`docker compose down -v`) antes das medições; o estado de partida é o #10 corrigido.
 
 - `resultados/20261117-192011-11-agregacao-vendas-por-dia`
@@ -420,6 +525,10 @@ Recursos (`recursos.txt`, mediana das 3 execuções; 100% = 1 CPU):
 Nota de método: a primeira tentativa do #11 (`resultados/20261117-181527-…`, `-181648-…` e `-181809-11-agregacao-vendas-por-dia-1a-tentativa`) foi medida sobre o estado do #9 com uma view sem uso no banco (o #10 ainda não alterava a rota; ver o detalhe do #10) e também não confirmou a H11: `vendas-por-dia` mediana 614,5 → 702,1 ms (+14,2%), p95 1075,5 → 1565,8 ms (+45,6%), p99 1276,7 → 2086,0 ms (+63,4%); CPU média da API 37,3% → 5,0% e do banco 95,6% → 97,0%. O `EXPLAIN (ANALYZE, BUFFERS)` da consulta agregada, sem carga (`diagnostico/saidas/20261117-183000-explain-agregacao-vendas-por-dia/`), levou 28,1 ms, com `Sort` por `(dia, id)` e `Gather Merge` com 2 workers antes do `GroupAggregate`; o plano antigo do mesmo período, registrado na Rodada 3, levava 7,6 ms (execuções diferentes, comparação aproximada).
 
 ### Detalhe do #12 (mediana das 3 execuções, antes → depois)
+
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H12 (#12).** Criar um índice em `clientes (lower(email))` deve reduzir a mediana, o p95 e o p99 da rota `cliente-por-email` sobre o estado após o #10, porque, segundo a Rodada 3, o plano faz `Seq Scan` em `clientes` (99.999 linhas descartadas para devolver 1, 1156 buffers, 24,8 ms), a consulta é 39,1% do tempo do banco sob carga (235,0 ms por chamada) e a CPU do banco é de 25,36 a 27,88 ms por requisição (cerca de 90% do custo da rota). Uma consulta que filtra pela mesma expressão, como `WHERE lower(col) = 'valor'`, pode usar um índice sobre a expressão e roda como uma busca por igualdade simples; o custo é calcular a expressão a cada inserção e atualização ([Docs 11.7](https://www.postgresql.org/docs/16/indexes-expressional.html)); como nenhuma rota da API altera `clientes`, esse custo não aparece na carga. O custo (tamanho do índice e tempo de criação) entra na comparação. A saída deve ficar idêntica; isso é conferido por `comparar` antes de medir.
 
 Rótulo `12-indice-email-clientes`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções. Mudança: novo arquivo `banco/09-indice-email-clientes.sql` com `CREATE INDEX idx_clientes_lower_email ON clientes (lower(email))` e `ANALYZE clientes`, aplicado ao recriar o banco (`docker compose down -v && up -d --build`); a consulta da rota (`WHERE lower(email) = lower($1)`) não mudou. O estado de partida é o #10 corrigido; o #11 não foi adotado.
 
@@ -461,6 +570,10 @@ Nota de método: a primeira tentativa do #12 (`resultados/20261117-183203-…`, 
 
 ### Detalhe do #13 (mediana das 3 execuções, antes → depois)
 
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H13 (#13).** Tirar `p.observacoes` do SELECT de `vendas-por-dia` deve aumentar as requisições por segundo gerais e reduzir a mediana e o p95 da rota, sobre o estado após o #12, porque, segundo a Rodada 4 (`diagnostico/saidas/20261118-094652-coleta/`), a API está no limite da cota de 0,5 CPU (715 de 782 períodos pausados), `vendas-por-dia` gasta 81,6 ms de CPU de API por chamada e responde por ~85% da CPU da API, e cada chamada traz ~12,9 mil linhas em que `observacoes` (277 bytes em média, ~3,6 MB por chamada) não é usada pelo JS. Se a CPU de API por chamada (`diagnostico/coleta/05-cpu-por-rota.sh`) não cair de forma mensurável, ou se as req/s ficarem dentro da variação entre execuções idênticas, o custo está na conversão e no laço por linha, não no volume de bytes, e o caminho passa a ser o #14. Sem serviço novo.
+
 Rótulo `13-vendas-sem-observacoes`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), commit `62a5493`, 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções.
 
 - `resultados/20261118-102920-13-vendas-sem-observacoes`
@@ -491,6 +604,10 @@ CPU média da API por req/s (pontos percentuais por requisição por segundo): 0
 O banco ficou em 93,0% de CPU média e 492,7 MiB de memória máxima (limite de 512 MiB); `pedidos-por-status` recebeu 757 requisições (antes 576) com p95 e p99 maiores, o que é compatível com o banco saturado (inferência, não testada).
 
 ### Detalhe do #14 (mediana das 3 execuções, antes → depois)
+
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H14 (#14).** Buscar os 20 `id`s da página numa subconsulta que lê só o índice `(status, criado_em DESC, id DESC)` e trazer as 4 colunas que a rota devolve apenas para esses 20, com `VACUUM (ANALYZE) pedidos` num novo `banco/10-vacuum-pedidos.sql`, deve reduzir os blocos lidos por chamada de `/pedidos` (hoje ~9.900, segundo a coleta da Rodada 4) para dezenas, reduzir a CPU do banco e reduzir o p95 e o p99 de `pedidos-por-status`, sobre o estado após o #13, porque, segundo a Rodada 4, cada linha pulada pelo OFFSET custa um acesso ao heap (página 500: 10.003 buffers para 20 linhas) e `relallvisible` é 0, o que impede o Index Only Scan. Depois do #13 o banco passou a ser o limite (CPU média de 93,0%, `resultados/*-13-vendas-sem-observacoes`) e `pedidos-por-status` piorou no p95 e no p99 (903,3 → 1129,1 ms e 1227,9 → 1640,5 ms), então reduzir o custo da listagem ataca o recurso saturado. A documentação do PostgreSQL diz que a consulta só usa Index Only Scan se referenciar apenas colunas do índice e que, sem o bit do mapa de visibilidade, a página do heap precisa ser consultada. Se o plano novo não for Index Only Scan, ou mostrar muitos `Heap Fetches`, a hipótese cai. A ordem `criado_em DESC, id DESC` é reaplicada fora da subconsulta. Sem serviço novo.
 
 Rótulo `14-listagem-juncao-adiada`, 3 execuções (20 VUs, 60 s, aquecimento 15 s, semente 42), commit `ee7980d`, 0 arquivos sem commit. Contrato mantido (42 respostas iguais) nas 3 execuções.
 
@@ -523,6 +640,10 @@ O p95 e o p99 de `pedidos-por-status`, que haviam subido no #13 com o banco em 9
 
 ### Detalhe do #15 (mediana das 3 execuções, antes → depois)
 
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H15 (#15).** Premissa (medida no #14): a API está no limite da cota (CPU médio 48,9–49,6% de 50%) e o banco está em ~65–67%. Na rodada 4, a `vendas-por-dia` custava 81,6 ms de CPU da API por chamada, porque o Node recebe ~12,9 mil linhas por chamada e as agrega em JS. Hipótese: fazer a agregação no SQL (`GROUP BY` por dia, `COUNT(DISTINCT p.id)`, `SUM(quantidade)`, `SUM(quantidade * preco_unitario_centavos)`) reduz as linhas trafegadas para o número de dias do intervalo e tira da API o parse e o laço. Previsão: a CPU da API por requisição cai e a vazão aumenta; o banco volta a ser o limite. Refuta se: o req/s subir menos que o ruído observado (até ~15% numa comparação A/A anterior), ou se o contrato mudar. Cuidados: o dia deve sair igual ao do JS atual (`toISOString().slice(0,10)`, ou seja, data em UTC); `COUNT`/`SUM` chegam como string no `pg`, então converter para número; manter `ORDER BY` por dia.
+
 O #15 parte do estado após o #14.
 
 - req/s: 107,3 → 131,0 (+22,0%)
@@ -538,6 +659,10 @@ O #15 parte do estado após o #14.
 - Contrato mantido nas 3 execuções.
 
 ### Detalhe do #16 (mediana das 3 execuções, antes → depois)
+
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H16 (#16).** Premissa (medida no #15): o banco é o limite (CPU média ~98%, API ~11%), e a `busca-produtos` é a rota leve mais lenta (mediana ~202 ms contra ~96–108 ms das outras). Na rodada 4, a busca fazia Seq Scan nas 20 mil linhas de `produtos`, com 9,9 dos 10,3 ms de execução gastos no `ILIKE` (colação en_US.utf8), e respondia por 24,5% do tempo de consultas no `pg_stat_statements`. Hipótese: um índice GIN com `gin_trgm_ops` em `produtos.nome` (extensão `pg_trgm`, na migração `banco/11-...sql`) permite ao planejador usar Bitmap Index Scan para `nome ILIKE '%' || $1 || '%'` sem mudar a consulta nem o resultado (termos têm 3 caracteres ou mais, o mínimo que o trigram precisa). Previsão (a confirmar com `EXPLAIN`): o custo de CPU do banco por busca cai e, como a busca é uma parte relevante das requisições, o req/s sobe. Refuta se: o `EXPLAIN` dos termos do contrato (`cadeira`, `lumin`, `ERGO`, `sem fio`) mostrar Seq Scan; se o req/s subir menos que o ruído observado (até ~15% numa comparação A/A anterior); ou se o contrato mudar. Risco: termos muito frequentes podem fazer o planejador preferir o Seq Scan mesmo com o índice, e o `ORDER BY nome, id LIMIT 20` ainda ordena os resultados do bitmap.
 
 O #16 parte do estado após o #15.
 
@@ -556,6 +681,10 @@ O #16 parte do estado após o #15.
 
 ### Detalhe do #17 (mediana das 3 execuções, antes → depois)
 
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H17 (#17).** Premissa (medida): o banco está no limite de CPU (~100% de 1 CPU no #16) e a única consulta de rota com plano paralelo é a de `vendas-por-dia` (`EXPLAIN` das consultas das demais rotas sem `Gather` nem `Parallel`). No `EXPLAIN (ANALYZE, BUFFERS)` dessa consulta, com banco ocioso e cache aquecido, o plano com 2 workers (Gather Merge) tem custo estimado de 25.849 e levou 37,8 ms de execução + 5,05 ms de planejamento; o plano serial tem custo estimado de 39.424 e levou 32,4 ms + 0,88 ms. Ou seja, o planejador estimou o plano paralelo como mais barato e ele foi mais lento (uma amostra por configuração). Mecanismo, segundo a documentação do PostgreSQL 16: com `max_parallel_workers_per_gather = 0` nenhum plano paralelo é gerado ([When Can Parallel Query Be Used?](https://www.postgresql.org/docs/16/when-can-parallel-query-be-used.html)); o líder também lê todas as tuplas produzidas pelos workers e, com muitas tuplas, passa a maior parte do tempo coletando resultados ([How Parallel Query Works](https://access.crunchydata.com/documentation/postgresql16/16.6/how-parallel-query-works.html)); o planejador estima o custo de iniciar workers (`parallel_setup_cost`, padrão 1000) e de passar cada linha a outro processo (`parallel_tuple_cost`, padrão 0,1) ([Planner Cost Constants](https://www.postgresql.org/docs/16/runtime-config-query.html)). A rota devolve ~12,9 mil linhas ao líder para produzir poucos grupos. Hipótese (não vem da documentação): com 1 CPU e outras rotas disputando o mesmo núcleo, o custo de iniciar e coordenar os workers não traz ganho e consome CPU. Mudança: `ALTER DATABASE loja SET max_parallel_workers_per_gather = 0` em `banco/12-sem-paralelismo.sql`. Previsão: o `EXPLAIN` da consulta passa a mostrar plano serial e o custo de CPU do banco por requisição cai, o que aumenta o req/s. Refuta se: o req/s subir menos que o ruído; o `EXPLAIN` ainda mostrar `Gather`; o contrato mudar; ou outra rota piorar. Risco: o `EXPLAIN` das demais rotas foi feito com valores literais, e a amostragem de `pg_stat_activity` durante a carga ainda não confirmou que só essa consulta usa workers.
+
 O #17 parte do estado após o #16.
 
 - req/s: 169,6 → 270,9 (+59,8%)
@@ -571,6 +700,10 @@ O #17 parte do estado após o #16.
 - Contrato mantido nas 3 execuções.
 
 ### Detalhe do #18 (mediana das 3 execuções, antes → depois)
+
+*Hipótese completa, no texto original (escrita antes de aplicar):*
+
+**H18 (#18).** Premissa (medida): o banco segue no limite de CPU (~99,5% de 1 CPU no #17) e `vendas-por-dia` é a rota mais lenta: 1.323 chamadas em 60 s (~8% das requisições) com mediana ~290 ms. A consulta lê ~12,9 mil linhas por chamada e executa em ~20 ms de banco (serial, ocioso, cache aquecido). Os dados não mudam durante a carga: as rotas da API são só GET. Mecanismo, segundo a documentação do PostgreSQL 16: uma view materializada guarda o resultado da consulta de forma semelhante a uma tabela e as consultas leem esse dado direto; o dado reflete o último `REFRESH` e só é atualizado por ele ([Materialized Views](https://www.postgresql.org/docs/16/rules-materializedviews.html); [CREATE MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-creatematerializedview.html)). Mudança: criar `mv_vendas_por_dia` (uma linha por dia, com pedidos, itens e receita, mesmo `JOIN` interno e mesmo filtro `status <> 'cancelado'` da consulta atual) em `banco/13-view-vendas-por-dia.sql`, com índice único em `dia`, e fazer a rota ler as linhas do intervalo `[inicio, fim]` da view. Previsão: o custo de CPU do banco por chamada de vendas cai muito, a mediana da rota cai e o req/s sobe. Custo: a rota passa a refletir o último `REFRESH` da view (aqui, a criação do banco); numa aplicação real com escrita seria preciso definir quando atualizar. Refuta se: o req/s subir menos que o ruído observado (até ~15% numa comparação A/A anterior); o contrato mudar (riscos: dias nas bordas do intervalo, pedidos sem item, pedidos cancelados, tipos numéricos); ou o plano da rota não usar a view.
 
 O #18 parte do estado após o #17.
 
@@ -589,55 +722,3 @@ O #18 parte do estado após o #17.
 - Custo: a rota reflete o último REFRESH da view (aqui, a criação do banco); a API só tem rotas GET.
 - A dispersão entre as execuções foi maior que nos experimentos anteriores; a causa não foi investigada.
 - Contrato mantido nas 3 execuções.
-
-## Hipóteses (escritas antes de aplicar)
-
-**H1 (#1).** Criar um índice em `itens_pedido(pedido_id)` deve reduzir o p95 da rota `pedidos-do-cliente`, porque, segundo a Rodada 1, cada uma das 5 consultas por requisição hoje lê a tabela inteira (varredura sequencial) e descarta 499999 linhas para devolver 2.
-
-**H2 (#2).** Criar um índice em `pedidos(cliente_id)` deve reduzir o p95 da rota `pedidos-do-cliente` sobre o estado após o #1, porque, segundo a Rodada 1, a consulta hoje lê a tabela inteira (varredura sequencial) e descarta 166665 linhas por processo para devolver 5.
-
-**H3 (#3).** Trocar a conexão por consulta (`db.js`) por um `pg.Pool` deve reduzir a mediana, o p95 e o p99 gerais sobre o estado após o #2, porque criar uma conexão leva tempo e hoje cada consulta cria a sua.
-
-**H4 (#4).** Colocar o PgBouncer entre a API e o banco, mantendo a API sem pool, deve reduzir a mediana, o p95 e o p99 gerais sobre o estado após o #2, pelo mesmo motivo do H3: o custo vem de abrir conexões ao banco, que está saturado, e o PgBouncer é um pooler de conexões que reaproveita as conexões ao servidor. O custo do contêiner novo (CPU e memória em `recursos.txt`) entra na comparação.
-
-**H5 (#5).** Colocar o Pgpool-II entre a API e o banco, mantendo a API sem pool, deve reduzir a mediana, o p95 e o p99 gerais sobre o estado após o #2, pelo mesmo motivo do H3, porque o Pgpool-II lista pool de conexões entre as suas funções. O custo do contêiner novo (CPU e memória em `recursos.txt`) entra na comparação.
-
-**H6 (#6).** Criar um índice em `pedidos(status, criado_em DESC, id DESC)` deve reduzir a mediana, o p95 e o p99 gerais sobre o estado após o #3, porque, segundo a Rodada 2, `pedidos-por-status` é 45,6% da CPU do banco no mix do k6 e a lista lê `pedidos` inteira e, na página 1000, ordena ~300.000 linhas em arquivo temporário no disco, e um índice na mesma ordem do `ORDER BY` entrega as linhas já ordenadas e dispensa essa ordenação ([Docs 11.4](https://www.postgresql.org/docs/16/indexes-ordering.html)), o que Winand chama de *pipelined order by* ([Use The Index, Luke](https://use-the-index-luke.com/sql/sorting-grouping/indexed-order-by)).
-
-**H7 (#7).** Criar um índice em `pedidos(criado_em)` e trocar o filtro de `vendas-por-dia`, de `criado_em::date BETWEEN $1 AND $2` para o intervalo `criado_em >= $1::date AND criado_em < $2::date + 1`, deve reduzir a mediana, o p95 e o p99 da rota `vendas-por-dia` sobre o estado após o #6, porque, segundo a Rodada 2, a rota gasta 185,0 ms de CPU do banco por requisição (11,9% da CPU do banco no mix do k6) e o plano lê `pedidos` inteira (~500.000 linhas, descartando ~495.700) para devolver ~4.300, já que o filtro com conversão sobre a coluna impede o uso de um índice sobre ela, e uma condição de intervalo permite usá-lo ([Winand](https://use-the-index-luke.com/sql/where-clause/obfuscation/dates)). Como `criado_em` é `timestamp without time zone`, a reescrita deve devolver os mesmos pedidos; isso é conferido por consulta antes de medir.
-
-**H8 (#8).** Criar a view materializada `mv_top_produtos`, com a soma de `quantidade` e de `quantidade * preco_unitario_centavos` por produto sobre os pedidos não cancelados, e um índice nela em `(receita_centavos DESC, id)`, e trocar a consulta de `top-produtos` para ler a view, deve reduzir a mediana, o p95 e o p99 da rota `top-produtos` sobre o estado após o #7, porque, segundo a Rodada 2, a rota gasta 1056,2 ms de CPU do banco por requisição (17,0% da CPU do banco no mix do k6, com 2 de 100 pontos de peso) e o plano lê e junta cerca de 1,35 milhão de linhas a cada requisição para calcular as somas de 19.206 produtos e devolver 10 (duração real do plano: 1287,6 e 1329,5 ms), e uma view materializada guarda esse resultado já calculado, de modo que ler dela costuma ser bem mais rápido que consultar as tabelas de origem ([Docs 41.3](https://www.postgresql.org/docs/16/rules-materializedviews.html)); o índice na mesma ordem do `ORDER BY` entrega as linhas já ordenadas ([Docs 11.4](https://www.postgresql.org/docs/16/indexes-ordering.html)). A view só reflete os dados até o último `REFRESH` ([REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-refreshmaterializedview.html)); como nenhuma rota da API altera `itens_pedido` nem `pedidos`, a view criada depois da carga não fica defasada. O custo (tamanho da view e tempo de criação) entra na comparação. A saída deve ficar idêntica; isso é conferido por `comparar` antes de medir.
-
-**H9 (#9).** Trocar, na rota `pedidos-do-cliente`, as consultas de itens (uma por pedido) e de produto (uma por item) por uma única junção `pedidos LEFT JOIN itens_pedido LEFT JOIN produtos`, com o agrupamento por pedido feito em JavaScript, deve reduzir a mediana, o p95 e o p99 da rota `pedidos-do-cliente` sobre o estado após o #8, porque, segundo a Rodada 1, uma requisição dessa rota dispara 17 consultas em sequência (1 de cliente, 1 de pedidos, 5 de itens e 10 de produtos) e, segundo a Rodada 3, essas consultas são baratas no banco e a rota é cara fora delas: sozinha, as 17 consultas somam 0,2 a 0,3 ms no banco e a requisição leva 9,2 ms; no `pg_stat_statements` sob carga as três consultas por pedido somam cerca de 0,6% do tempo do banco; a CPU por requisição é de 3,42 a 3,62 ms no banco e de 10,24 a 11,41 ms na API; e, sob carga, a mediana da rota é de 1200,7 ms. Isso é compatível com um custo que vem do número de idas e voltas ao banco, e não do trabalho de cada consulta. Winand descreve esse padrão como o problema N+1 e aponta a junção no banco como correção, porque cada comando extra é uma ida e volta ao banco e o número de idas e voltas pesa mais no tempo de resposta do que o volume de dados ([Winand](https://use-the-index-luke.com/sql/join/nested-loops-join-n1-problem)). Ficam 2 consultas por requisição (a do cliente e a junção). A resposta deve ficar idêntica: pedidos por `criado_em DESC, id DESC`, itens por `id`, e pedido sem itens com `itens: []` e `total_centavos: 0`; isso é conferido por `comparar` antes de medir.
-
-**H10 (#10).** Criar a view materializada `mv_pedidos_por_status`, com `status` e a contagem de pedidos por status, e trocar o `SELECT count(*) FROM pedidos WHERE status = $1` de `pedidos-por-status` pela leitura dela deve reduzir a mediana, o p95 e o p99 da rota `pedidos-por-status` sobre o estado após o #9, porque, segundo a Rodada 3, o `count(*)` é 15,2% do tempo do banco (95,1 ms por chamada sob carga) e, para `pago`, o plano percorre 300.000 entradas de índice em 2 processos extras (19,4 ms, 1484 buffers), e a CPU do banco por requisição é de 43,45 a 51,34 ms com `pago` contra 13,47 a 15,62 ms com `entregue` na página 500. No PostgreSQL, `count(*)` precisa verificar a visibilidade das linhas ([Wiki: Slow Counting](https://wiki.postgresql.org/wiki/Slow_Counting)), enquanto uma view materializada guarda o resultado já calculado ([Docs 41.3](https://www.postgresql.org/docs/16/rules-materializedviews.html)). A view só reflete os dados até o último `REFRESH` ([REFRESH MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-refreshmaterializedview.html)); como nenhuma rota da API altera `pedidos`, a view criada depois da carga não fica defasada. Os quatro status válidos têm pedidos (300.000, 125.000, 50.000 e 25.000), então todos aparecem na view. O custo (tamanho da view e tempo de criação) entra na comparação. A saída deve ficar idêntica; isso é conferido por `comparar` antes de medir.
-
-**H11 (#11).** Trocar a consulta de `vendas-por-dia`, que devolve uma linha por item e agrupa por dia em JavaScript, por uma consulta que agrupa por dia no banco (`GROUP BY` do dia de `criado_em`, `count(DISTINCT p.id)`, `sum(i.quantidade)` e `sum(i.quantidade * i.preco_unitario_centavos)`) e não traz a coluna `observacoes`, deve reduzir a mediana, o p95 e o p99 da rota `vendas-por-dia` sobre o estado após o #10, porque, segundo a Rodada 3, a rota gasta 78,1 a 84,1 ms de CPU da API por requisição (contra 38,2 a 40,6 ms do banco), o plano devolve 12.951 linhas de 296 bytes para a API (a consulta leva 7,6 ms no banco desde o #7) e a rota responde por cerca de 60% da CPU da API no mix (estimativa: peso 8 × 78,1 a 84,1 ms, em ~10,7 ms por requisição do mix), enquanto a resposta final tem só uma linha por dia (até 7). A coluna `observacoes` só aparece no `SELECT` dessa rota (`api/src/rotas.js`): não entra no cálculo nem na resposta, e o `base.json` do contrato não a contém. Os resultados de `sum` e `count` têm tipo `bigint` ou `numeric` no PostgreSQL ([Docs 9.21](https://www.postgresql.org/docs/16/functions-aggregate.html)), que o driver entrega como texto; a rota converte esses campos com `Number()` para manter os mesmos números, e o produto `quantidade * preço` é calculado em `bigint` para não estourar o `integer`. A resposta deve ficar idêntica (dias em ordem crescente, só dias com pedidos não cancelados); isso é conferido por `comparar` antes de medir.
-
-**H11, retestada (#11).** A primeira medição desta ideia, feita sobre o estado do #9 com uma view sem uso no banco, não confirmou a H11: a CPU do banco estava perto de 96% e a agregação passou para ele. A ideia é refeita sobre o estado após o #10 corrigido, em que a CPU média do banco é 85,9% (antes 92,1%) e a da API é 43,9% de 1 CPU, cerca de 88% da quota de 0,5 CPU (antes 38,3%, cerca de 77%). Agrupar `vendas-por-dia` no banco deve reduzir a mediana, o p95 e o p99 da rota, porque, se a API passou a ser o recurso mais limitante e o banco tem alguma folga, trocar o laço em JavaScript sobre 12.951 linhas (CPU da API de 78 a 84 ms por requisição na Rodada 3) por uma agregação no banco tira trabalho do recurso mais saturado. Se o banco seguir sendo o limite, o resultado deve repetir a piora da primeira tentativa.
-
-**H12 (#12).** Criar um índice em `clientes (lower(email))` deve reduzir a mediana, o p95 e o p99 da rota `cliente-por-email` sobre o estado após o #10, porque, segundo a Rodada 3, o plano faz `Seq Scan` em `clientes` (99.999 linhas descartadas para devolver 1, 1156 buffers, 24,8 ms), a consulta é 39,1% do tempo do banco sob carga (235,0 ms por chamada) e a CPU do banco é de 25,36 a 27,88 ms por requisição (cerca de 90% do custo da rota). Uma consulta que filtra pela mesma expressão, como `WHERE lower(col) = 'valor'`, pode usar um índice sobre a expressão e roda como uma busca por igualdade simples; o custo é calcular a expressão a cada inserção e atualização ([Docs 11.7](https://www.postgresql.org/docs/16/indexes-expressional.html)); como nenhuma rota da API altera `clientes`, esse custo não aparece na carga. O custo (tamanho do índice e tempo de criação) entra na comparação. A saída deve ficar idêntica; isso é conferido por `comparar` antes de medir.
-
-**H13 (#13).** Tirar `p.observacoes` do SELECT de `vendas-por-dia` deve aumentar as requisições por segundo gerais e reduzir a mediana e o p95 da rota, sobre o estado após o #12, porque, segundo a Rodada 4 (`diagnostico/saidas/20261118-094652-coleta/`), a API está no limite da cota de 0,5 CPU (715 de 782 períodos pausados), `vendas-por-dia` gasta 81,6 ms de CPU de API por chamada e responde por ~85% da CPU da API, e cada chamada traz ~12,9 mil linhas em que `observacoes` (277 bytes em média, ~3,6 MB por chamada) não é usada pelo JS. Se a CPU de API por chamada (`diagnostico/coleta/05-cpu-por-rota.sh`) não cair de forma mensurável, ou se as req/s ficarem dentro da variação entre execuções idênticas, o custo está na conversão e no laço por linha, não no volume de bytes, e o caminho passa a ser o #14. Sem serviço novo.
-
-**H14 (#14).** Buscar os 20 `id`s da página numa subconsulta que lê só o índice `(status, criado_em DESC, id DESC)` e trazer as 4 colunas que a rota devolve apenas para esses 20, com `VACUUM (ANALYZE) pedidos` num novo `banco/10-vacuum-pedidos.sql`, deve reduzir os blocos lidos por chamada de `/pedidos` (hoje ~9.900, segundo a coleta da Rodada 4) para dezenas, reduzir a CPU do banco e reduzir o p95 e o p99 de `pedidos-por-status`, sobre o estado após o #13, porque, segundo a Rodada 4, cada linha pulada pelo OFFSET custa um acesso ao heap (página 500: 10.003 buffers para 20 linhas) e `relallvisible` é 0, o que impede o Index Only Scan. Depois do #13 o banco passou a ser o limite (CPU média de 93,0%, `resultados/*-13-vendas-sem-observacoes`) e `pedidos-por-status` piorou no p95 e no p99 (903,3 → 1129,1 ms e 1227,9 → 1640,5 ms), então reduzir o custo da listagem ataca o recurso saturado. A documentação do PostgreSQL diz que a consulta só usa Index Only Scan se referenciar apenas colunas do índice e que, sem o bit do mapa de visibilidade, a página do heap precisa ser consultada. Se o plano novo não for Index Only Scan, ou mostrar muitos `Heap Fetches`, a hipótese cai. A ordem `criado_em DESC, id DESC` é reaplicada fora da subconsulta. Sem serviço novo.
-
-**H15 (#15).** Premissa (medida no #14): a API está no limite da cota (CPU médio 48,9–49,6% de 50%) e o banco está em ~65–67%. Na rodada 4, a `vendas-por-dia` custava 81,6 ms de CPU da API por chamada, porque o Node recebe ~12,9 mil linhas por chamada e as agrega em JS. Hipótese: fazer a agregação no SQL (`GROUP BY` por dia, `COUNT(DISTINCT p.id)`, `SUM(quantidade)`, `SUM(quantidade * preco_unitario_centavos)`) reduz as linhas trafegadas para o número de dias do intervalo e tira da API o parse e o laço. Previsão: a CPU da API por requisição cai e a vazão aumenta; o banco volta a ser o limite. Refuta se: o req/s subir menos que o ruído observado (até ~15% numa comparação A/A anterior), ou se o contrato mudar. Cuidados: o dia deve sair igual ao do JS atual (`toISOString().slice(0,10)`, ou seja, data em UTC); `COUNT`/`SUM` chegam como string no `pg`, então converter para número; manter `ORDER BY` por dia.
-
-**H16 (#16).** Premissa (medida no #15): o banco é o limite (CPU média ~98%, API ~11%), e a `busca-produtos` é a rota leve mais lenta (mediana ~202 ms contra ~96–108 ms das outras). Na rodada 4, a busca fazia Seq Scan nas 20 mil linhas de `produtos`, com 9,9 dos 10,3 ms de execução gastos no `ILIKE` (colação en_US.utf8), e respondia por 24,5% do tempo de consultas no `pg_stat_statements`. Hipótese: um índice GIN com `gin_trgm_ops` em `produtos.nome` (extensão `pg_trgm`, na migração `banco/11-...sql`) permite ao planejador usar Bitmap Index Scan para `nome ILIKE '%' || $1 || '%'` sem mudar a consulta nem o resultado (termos têm 3 caracteres ou mais, o mínimo que o trigram precisa). Previsão (a confirmar com `EXPLAIN`): o custo de CPU do banco por busca cai e, como a busca é uma parte relevante das requisições, o req/s sobe. Refuta se: o `EXPLAIN` dos termos do contrato (`cadeira`, `lumin`, `ERGO`, `sem fio`) mostrar Seq Scan; se o req/s subir menos que o ruído observado (até ~15% numa comparação A/A anterior); ou se o contrato mudar. Risco: termos muito frequentes podem fazer o planejador preferir o Seq Scan mesmo com o índice, e o `ORDER BY nome, id LIMIT 20` ainda ordena os resultados do bitmap.
-
-**H17 (#17).** Premissa (medida): o banco está no limite de CPU (~100% de 1 CPU no #16) e a única consulta de rota com plano paralelo é a de `vendas-por-dia` (`EXPLAIN` das consultas das demais rotas sem `Gather` nem `Parallel`). No `EXPLAIN (ANALYZE, BUFFERS)` dessa consulta, com banco ocioso e cache aquecido, o plano com 2 workers (Gather Merge) tem custo estimado de 25.849 e levou 37,8 ms de execução + 5,05 ms de planejamento; o plano serial tem custo estimado de 39.424 e levou 32,4 ms + 0,88 ms. Ou seja, o planejador estimou o plano paralelo como mais barato e ele foi mais lento (uma amostra por configuração). Mecanismo, segundo a documentação do PostgreSQL 16: com `max_parallel_workers_per_gather = 0` nenhum plano paralelo é gerado ([When Can Parallel Query Be Used?](https://www.postgresql.org/docs/16/when-can-parallel-query-be-used.html)); o líder também lê todas as tuplas produzidas pelos workers e, com muitas tuplas, passa a maior parte do tempo coletando resultados ([How Parallel Query Works](https://access.crunchydata.com/documentation/postgresql16/16.6/how-parallel-query-works.html)); o planejador estima o custo de iniciar workers (`parallel_setup_cost`, padrão 1000) e de passar cada linha a outro processo (`parallel_tuple_cost`, padrão 0,1) ([Planner Cost Constants](https://www.postgresql.org/docs/16/runtime-config-query.html)). A rota devolve ~12,9 mil linhas ao líder para produzir poucos grupos. Hipótese (não vem da documentação): com 1 CPU e outras rotas disputando o mesmo núcleo, o custo de iniciar e coordenar os workers não traz ganho e consome CPU. Mudança: `ALTER DATABASE loja SET max_parallel_workers_per_gather = 0` em `banco/12-sem-paralelismo.sql`. Previsão: o `EXPLAIN` da consulta passa a mostrar plano serial e o custo de CPU do banco por requisição cai, o que aumenta o req/s. Refuta se: o req/s subir menos que o ruído; o `EXPLAIN` ainda mostrar `Gather`; o contrato mudar; ou outra rota piorar. Risco: o `EXPLAIN` das demais rotas foi feito com valores literais, e a amostragem de `pg_stat_activity` durante a carga ainda não confirmou que só essa consulta usa workers.
-
-**H18 (#18).** Premissa (medida): o banco segue no limite de CPU (~99,5% de 1 CPU no #17) e `vendas-por-dia` é a rota mais lenta: 1.323 chamadas em 60 s (~8% das requisições) com mediana ~290 ms. A consulta lê ~12,9 mil linhas por chamada e executa em ~20 ms de banco (serial, ocioso, cache aquecido). Os dados não mudam durante a carga: as rotas da API são só GET. Mecanismo, segundo a documentação do PostgreSQL 16: uma view materializada guarda o resultado da consulta de forma semelhante a uma tabela e as consultas leem esse dado direto; o dado reflete o último `REFRESH` e só é atualizado por ele ([Materialized Views](https://www.postgresql.org/docs/16/rules-materializedviews.html); [CREATE MATERIALIZED VIEW](https://www.postgresql.org/docs/16/sql-creatematerializedview.html)). Mudança: criar `mv_vendas_por_dia` (uma linha por dia, com pedidos, itens e receita, mesmo `JOIN` interno e mesmo filtro `status <> 'cancelado'` da consulta atual) em `banco/13-view-vendas-por-dia.sql`, com índice único em `dia`, e fazer a rota ler as linhas do intervalo `[inicio, fim]` da view. Previsão: o custo de CPU do banco por chamada de vendas cai muito, a mediana da rota cai e o req/s sobe. Custo: a rota passa a refletir o último `REFRESH` da view (aqui, a criação do banco); numa aplicação real com escrita seria preciso definir quando atualizar. Refuta se: o req/s subir menos que o ruído observado (até ~15% numa comparação A/A anterior); o contrato mudar (riscos: dias nas bordas do intervalo, pedidos sem item, pedidos cancelados, tipos numéricos); ou o plano da rota não usar a view.
-
-
-Os #3, #4 e #5 são testados separadamente, cada um sobre o estado após o #2 e sem os outros dois aplicados.
-O #6 parte do estado após o #3 (o `pg.Pool`, adotado entre os três por melhorar as métricas sem contêiner novo).
-O #7 parte do estado após o #6.
-O #8 parte do estado após o #7.
-O #9 parte do estado após o #8.
-O #10 parte do estado após o #9.
-O #11 parte do estado após o #10.
-O #12 parte do estado após o #10 (o #11 não foi adotado).
-O #13 parte do estado após o #12.
-O #14 parte do estado após o #13.
